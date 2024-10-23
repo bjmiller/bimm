@@ -1,3 +1,4 @@
+/* eslint-disable no-magic-numbers */
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: ['./src/**/*.{html,ts,tsx}'],
@@ -6,8 +7,8 @@ module.exports = {
       fontFamily: {
         hack: ['HackNerd']
       },
-      borderWidth: {
-        1: '1px'
+      spacing: {
+        0.75: '0.1875rem'
       }
     }
   },

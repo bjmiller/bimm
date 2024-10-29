@@ -8,7 +8,6 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "moduleResolution": "Node10",
-    "resolvePackageJsonExports": false,
     "checkJs": true,
     "outDir": "dist",
     "jsx": "react-jsx",

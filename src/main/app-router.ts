@@ -13,7 +13,7 @@ export const createContextCreator = (ctx: TRPCContext) => {
 const t = initTRPC.context<TRPCContext>().create({ transformer: superjson });
 export const appRouter = t.router({
   settings: t.procedure.query(({ ctx }) => {
-    return ctx.settings?.directories;
+    return ctx.settings;
   }),
   date: t.procedure.query(() => {
     return new Date();

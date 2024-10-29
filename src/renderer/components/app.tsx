@@ -1,11 +1,8 @@
 import React, { useState } from 'react';
 import { ipcLink } from 'trpc-electron/renderer';
-import { createTRPCReact } from '@trpc/react-query';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { type AppRouter } from '../../main/trpc';
 import superjson from 'superjson';
-
-const trpcReact = createTRPCReact<AppRouter>(); // Where should this live?
+import { trpcReact } from '../lib/trpc';
 
 const App = () => {
   const [queryClient] = useState(() => new QueryClient());
@@ -18,7 +15,7 @@ const App = () => {
   return (
     <trpcReact.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
-        <div className="font-hack">
+        <div>
           <ShowSettings />
         </div>
       </QueryClientProvider>

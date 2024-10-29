@@ -3,7 +3,7 @@ import { sep } from 'node:path';
 import log from 'electron-log/main';
 import { createIPCHandler } from 'trpc-electron/main';
 import { ensureDirectory, getSettings } from './main/file-ops';
-import { createContextCreator, appRouter } from './main/trpc';
+import { createContextCreator, appRouter } from './main/app-router';
 
 log.transports.file.level = false;
 log.initialize();

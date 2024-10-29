@@ -8,7 +8,7 @@ import CopyWebpackPlugin from 'copy-webpack-plugin';
 
 const aggregateTimeout = 200;
 
-const bootConfig: webpack.Configuration = {
+const mainConfig: webpack.Configuration = {
   mode: 'production',
   target: 'electron-main',
   entry: './src/index.ts',
@@ -20,6 +20,7 @@ const bootConfig: webpack.Configuration = {
       }
     ]
   },
+  resolve: { extensions: ['', '.ts', '.js', '...'] },
   output: {
     path: resolve(__dirname, 'dist'),
     filename: 'index.js'
@@ -34,10 +35,36 @@ const bootConfig: webpack.Configuration = {
   }
 };
 
+const preloadConfig: webpack.Configuration = {
+  mode: 'production',
+  target: 'electron-preload',
+  entry: './src/preload.ts',
+  module: {
+    rules: [
+      {
+        test: /\.ts$/,
+        use: ['ts-loader']
+      }
+    ]
+  },
+  resolve: { extensions: ['', '.ts', '.js', '...'] },
+  output: {
+    path: resolve(__dirname, 'dist'),
+    filename: 'preload.js'
+  },
+  optimization: {
+    minimize: false
+  },
+  watch: true,
+  watchOptions: {
+    aggregateTimeout
+  }
+};
+
 const pageConfig: webpack.Configuration = {
   mode: 'production',
   target: 'electron-renderer',
-  entry: './src/page.ts',
+  entry: './src/renderer/page.tsx',
   module: {
     rules: [
       {
@@ -87,4 +114,4 @@ const pageConfig: webpack.Configuration = {
   }
 };
 
-export default [bootConfig, pageConfig];
+export default [mainConfig, preloadConfig, pageConfig];

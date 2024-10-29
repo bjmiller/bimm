@@ -3,11 +3,12 @@
     "target": "ES6",
     "sourceMap": true,
     "allowSyntheticDefaultImports": true,
-    "module": "NodeNext",
+    "module": "CommonJS",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "moduleResolution": "NodeNext",
+    "moduleResolution": "Node10",
+    "resolvePackageJsonExports": false,
     "checkJs": true,
     "outDir": "dist",
     "jsx": "react-jsx",
@@ -19,7 +20,7 @@
   },
   "include": [
     "src",
-    "webpack.config.ts",
+    "webpack.config.*ts",
     "*.config.js"
   ]
 }

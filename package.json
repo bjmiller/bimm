@@ -47,10 +47,16 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.59.16",
+    "@trpc/client": "~11.0.0-rc.593",
+    "@trpc/react-query": "^11.0.0-rc.593",
+    "@trpc/server": "~11.0.0-rc.593",
     "dayjs": "^1.11.10",
     "electron": "^33.0.1",
     "electron-log": "^5.2.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "superjson": "^2.2.1",
+    "trpc-electron": "^0.1.1"
   }
 }

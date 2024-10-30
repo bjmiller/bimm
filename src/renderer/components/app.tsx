@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ipcLink } from 'trpc-electron/renderer';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import superjson from 'superjson';
+import { ErrorBoundary, type FallbackProps } from 'react-error-boundary';
 import { trpcReact } from '../lib/trpc';
 
 const App = () => {
@@ -11,6 +12,15 @@ const App = () => {
       links: [ipcLink({ transformer: superjson })]
     })
   );
+
+  const DisplayError = ({ error }: FallbackProps) => {
+    return (
+      <div className="flex flex-col bg-red-400 text-red-950 p-5">
+        <div className="p-2.5">{(error as Error).message}</div>
+        <div className="p-2.5 text-xs">{(error as Error).stack}</div>
+      </div>
+    );
+  };
 
   return (
     /**
@@ -28,9 +38,11 @@ const App = () => {
     // @ts-ignore
     <trpcReact.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
-        <div>
-          <ShowSettings />
-        </div>
+        <ErrorBoundary FallbackComponent={DisplayError}>
+          <div>
+            <ShowSettings />
+          </div>
+        </ErrorBoundary>
       </QueryClientProvider>
     </trpcReact.Provider>
   );
@@ -39,7 +51,7 @@ const App = () => {
 const ShowSettings = () => {
   const settingsQuery = trpcReact.settings.getSettings.useQuery();
 
-  return <span>{JSON.stringify(settingsQuery.data)}</span>;
+  return <span>{JSON.stringify(settingsQuery.data?.directories)}</span>;
 };
 
 export { App };

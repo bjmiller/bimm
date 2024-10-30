@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import log from 'electron-log/main';
 import { type AppSettings } from '../types';
+import { type PathLike } from 'node:fs';
 
 log.transports.file.level = false;
 
@@ -68,4 +69,14 @@ export const getSettings = async (opts: { defaultMusicPath: string }) => {
     log.error(`Unable to read config file: ${messageFrom(readFileError)}`);
     return null;
   }
+};
+
+export const getAlbumDirectories = async (root?: PathLike) => {
+  if (root == null || root === '') return [];
+  const dirents = await fs.readdir(root, { withFileTypes: true });
+  return dirents
+    .filter((dirent) => dirent.isDirectory())
+    .map((dirent) => {
+      return { name: dirent.name, path: dirent.parentPath };
+    });
 };

@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import superjson from 'superjson';
 import { ErrorBoundary, type FallbackProps } from 'react-error-boundary';
 import { trpcReact } from '../lib/trpc';
+import { AlbumList } from './album-list';
 
 const App = () => {
   const [queryClient] = useState(() => new QueryClient());
@@ -40,18 +41,12 @@ const App = () => {
       <QueryClientProvider client={queryClient}>
         <ErrorBoundary FallbackComponent={DisplayError}>
           <div>
-            <ShowSettings />
+            <AlbumList />
           </div>
         </ErrorBoundary>
       </QueryClientProvider>
     </trpcReact.Provider>
   );
-};
-
-const ShowSettings = () => {
-  const settingsQuery = trpcReact.settings.getSettings.useQuery();
-
-  return <span>{JSON.stringify(settingsQuery.data?.directories)}</span>;
 };
 
 export { App };

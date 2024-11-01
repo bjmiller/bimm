@@ -8,11 +8,16 @@ import { createContextCreator, appRouter } from './main/app-router';
 log.transports.file.level = false;
 log.initialize();
 
+const height = 768;
+const width = 1280;
+
 const createWindow = () => {
   const win = new BrowserWindow({
     webPreferences: {
       preload: `${__dirname}${sep}preload.js`
     },
+    height,
+    width,
     title: 'BIMM',
     icon: `${__dirname}${sep}icons${sep}musical-note-512.png`
   });

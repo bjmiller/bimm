@@ -1,21 +1,23 @@
 import fs from 'node:fs/promises';
+import { type Dirent, type PathLike } from 'node:fs';
 import os from 'node:os';
-import path from 'node:path';
+import { sep } from 'node:path';
 import log from 'electron-log/main';
-import { type AppSettings } from '../types';
-import { type PathLike } from 'node:fs';
+import { type IAudioMetadata, loadMusicMetadata } from 'music-metadata';
+import pLimit from 'p-limit';
+import { type Track, type AppSettings, type Album } from '../types';
 
 log.transports.file.level = false;
 
-const APP_PATH = `${os.homedir()}${path.sep}.bimm`;
-const CONFIG_PATH = `${APP_PATH}${path.sep}.bimmrc.json`;
-const DATA_PATH = `${APP_PATH}${path.sep}bimmdata.json`;
+const APP_PATH = `${os.homedir()}${sep}.bimm`;
+const CONFIG_PATH = `${APP_PATH}${sep}.bimmrc.json`;
+// const DATA_PATH = `${APP_PATH}${sep}bimmdata.json`;
 
 const isNodeError = (item: unknown): item is NodeJS.ErrnoException => {
   return item != null && typeof item === 'object' && Object.hasOwn(item, 'code') && Object.hasOwn(item, 'errno');
 };
 
-const messageFrom = (err: unknown) => (isNodeError(err) ? err.message : String(err));
+const messageFrom = (err: unknown) => (isNodeError(err) ? `${err.message}\n${err.stack}` : String(err));
 
 export const ensureDirectory = async () => {
   try {
@@ -71,12 +73,86 @@ export const getSettings = async (opts: { defaultMusicPath: string }) => {
   }
 };
 
-export const getAlbumDirectories = async (root?: PathLike) => {
+// We're trusting that the file extension is enough to tell if a file is an audio track.
+const isAudio = (filename: string) => {
+  const extensions = ['.mp3', '.m4a', '.flac'];
+  for (const ext of extensions) {
+    if (filename.endsWith(ext)) return true;
+  }
+  return false;
+};
+
+const fullPathOf = (dirent: Dirent) => `${dirent.parentPath}${sep}${dirent.name}`;
+
+const getTracks = async (dir: string) => {
+  const mm = await loadMusicMetadata();
+  let tracks: Track[] = [];
+  let audioDirents: Dirent[] = [];
+  // Get the names of the audio files
+  try {
+    const dirents = await fs.readdir(dir, { withFileTypes: true });
+    audioDirents = dirents.filter((dirent) => dirent.isFile() && isAudio(dirent.name));
+  } catch (listAudioFilesError) {
+    log.error(`Unable to list audio files in ${dir}: ${messageFrom(listAudioFilesError)}`);
+    return [];
+  }
+
+  // Get the metadata for each file
+  const parses = audioDirents.map(async (dirent) => {
+    const fullPath = fullPathOf(dirent);
+    let metadata: IAudioMetadata;
+    let track: Track = {
+      filename: dirent.name,
+      fullPath: fullPathOf(dirent)
+    };
+    try {
+      metadata = await mm.parseFile(fullPath, { duration: true, skipCovers: true });
+      track = {
+        ...track,
+        title: metadata.common.title,
+        duration: metadata.format.duration,
+        disk: metadata.common.disk.no,
+        track: metadata.common.track.no,
+        year: metadata.common.year,
+        includedGenre: metadata.common.genre
+      };
+    } catch (parseError) {
+      log.error(`Unable to parse for metadata: ${dirent.name}: ${messageFrom(parseError)}`);
+    }
+    return track;
+  });
+
+  const settledParses = await Promise.allSettled(parses);
+  tracks = settledParses.filter((item) => item.status === 'fulfilled').map((item) => item.value);
+
+  return tracks;
+};
+
+export const getAlbumDirectories = async (root?: PathLike): Promise<Album[]> => {
   if (root == null || root === '') return [];
   const dirents = await fs.readdir(root, { withFileTypes: true });
-  return dirents
-    .filter((dirent) => dirent.isDirectory())
-    .map((dirent) => {
-      return { name: dirent.name, path: dirent.parentPath };
-    });
+
+  const NUMBER_OF_CONCURRENT_ALBUM_SCANS = 7;
+  const limit = pLimit(NUMBER_OF_CONCURRENT_ALBUM_SCANS);
+
+  const albumIteratee = async (dirent: Dirent) => {
+    const fullpath = fullPathOf(dirent);
+    let mtime: Date | undefined;
+    try {
+      const stat = await fs.stat(fullpath);
+      mtime = stat.mtime;
+    } catch (statError) {
+      log.error(`Fail to stat ${dirent.name}: ${messageFrom(statError)}`);
+    }
+
+    const tracks = await getTracks(fullpath);
+
+    return { filename: dirent.name, fullpath, mtime, tracks };
+  };
+
+  const albumItems = dirents.filter((dirent) => dirent.isDirectory()).map((dirent) => limit(albumIteratee, dirent));
+  const settledAlbumItems = await Promise.allSettled(albumItems);
+  const albumValues = settledAlbumItems.filter((item) => item.status === 'fulfilled').map((item) => item.value);
+
+  return albumValues;
 };

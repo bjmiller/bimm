@@ -7,6 +7,9 @@ module.exports = {
       fontFamily: {
         hack: ['HackNerd']
       },
+      fontSize: {
+        xxs: ['0.7rem', '0.7rem']
+      },
       spacing: {
         0.75: '0.1875rem'
       }

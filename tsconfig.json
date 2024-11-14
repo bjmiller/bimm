@@ -1,12 +1,15 @@
 {
   "compilerOptions": {
+    "incremental": true,
     "target": "ES6",
     "sourceMap": true,
     "allowSyntheticDefaultImports": true,
     "module": "CommonJS",
     "strict": true,
+    "strictNullChecks": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
+    "noUncheckedIndexedAccess": true,
     "moduleResolution": "Node10",
     "checkJs": true,
     "outDir": "dist",

@@ -12,7 +12,14 @@ export interface Album {
   mtime?: Date;
   title?: string;
   tracks?: Track[];
-  tags?: string[];
+  spotifyGenres?: string[];
+  bandcampTags?: string[];
+}
+
+export interface AlbumMetadata {
+  mtime?: Date;
+  spotifyGenres?: string[];
+  bandcampTags?: string[];
 }
 
 export interface Track {

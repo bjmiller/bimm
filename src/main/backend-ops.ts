@@ -5,19 +5,32 @@ import { sep } from 'node:path';
 import log from 'electron-log/main';
 import { type IAudioMetadata, loadMusicMetadata } from 'music-metadata';
 import pLimit from 'p-limit';
+import { app } from 'electron';
+import dayjs from 'dayjs';
+import duration from 'dayjs/plugin/duration';
+dayjs.extend(duration);
 import { type Track, type AppSettings, type Album } from '../types';
 
 log.transports.file.level = false;
 
 const APP_PATH = `${os.homedir()}${sep}.bimm`;
 const CONFIG_PATH = `${APP_PATH}${sep}.bimmrc.json`;
-// const DATA_PATH = `${APP_PATH}${sep}bimmdata.json`;
 
 const isNodeError = (item: unknown): item is NodeJS.ErrnoException => {
   return item != null && typeof item === 'object' && Object.hasOwn(item, 'code') && Object.hasOwn(item, 'errno');
 };
 
+const isFulfilled = <T>(response: PromiseSettledResult<T>): response is PromiseFulfilledResult<T> => {
+  return response.status === 'fulfilled';
+};
+
 const messageFrom = (err: unknown) => (isNodeError(err) ? `${err.message}\n${err.stack}` : String(err));
+
+const PathNameFile = {
+  toFileName: (pathname: string) => `${encodeURIComponent(pathname)}.json`,
+  fromFileName: (pathnamefilename: string) => decodeURIComponent(pathnamefilename.replace(/\.json$/, ''))
+};
+Object.freeze(PathNameFile);
 
 export const ensureDirectory = async () => {
   try {
@@ -45,7 +58,7 @@ export const ensureDirectory = async () => {
   }
 };
 
-export const getSettings = async (opts: { defaultMusicPath: string }) => {
+export const getOrCreateSettings = async () => {
   // Check for existence
   try {
     await fs.stat(CONFIG_PATH);
@@ -54,7 +67,7 @@ export const getSettings = async (opts: { defaultMusicPath: string }) => {
       log.log(`Config file not present, creating a new one`);
       try {
         // eslint-disable-next-line no-magic-numbers
-        await fs.writeFile(CONFIG_PATH, JSON.stringify({ directories: [opts.defaultMusicPath] }, null, 2));
+        await fs.writeFile(CONFIG_PATH, JSON.stringify({ directories: [app.getPath('music')] }, null, 2));
       } catch (writeError) {
         log.error(`Failed to write initial config file: ${messageFrom(writeError)}`);
         return null;
@@ -75,7 +88,7 @@ export const getSettings = async (opts: { defaultMusicPath: string }) => {
 
 // We're trusting that the file extension is enough to tell if a file is an audio track.
 const isAudio = (filename: string) => {
-  const extensions = ['.mp3', '.m4a', '.flac'];
+  const extensions = ['.mp3', '.m4a', '.flac', '.ogg'];
   for (const ext of extensions) {
     if (filename.endsWith(ext)) return true;
   }
@@ -123,16 +136,17 @@ const getTracks = async (dir: string) => {
   });
 
   const settledParses = await Promise.allSettled(parses);
-  tracks = settledParses.filter((item) => item.status === 'fulfilled').map((item) => item.value);
+  tracks = settledParses.filter(isFulfilled).map((item) => item.value);
 
   return tracks;
 };
 
 export const getAlbumDirectories = async (root?: PathLike): Promise<Album[]> => {
+  const start = performance.now();
   if (root == null || root === '') return [];
   const dirents = await fs.readdir(root, { withFileTypes: true });
 
-  const NUMBER_OF_CONCURRENT_ALBUM_SCANS = 7;
+  const NUMBER_OF_CONCURRENT_ALBUM_SCANS = 20;
   const limit = pLimit(NUMBER_OF_CONCURRENT_ALBUM_SCANS);
 
   const albumIteratee = async (dirent: Dirent) => {
@@ -152,7 +166,9 @@ export const getAlbumDirectories = async (root?: PathLike): Promise<Album[]> => 
 
   const albumItems = dirents.filter((dirent) => dirent.isDirectory()).map((dirent) => limit(albumIteratee, dirent));
   const settledAlbumItems = await Promise.allSettled(albumItems);
-  const albumValues = settledAlbumItems.filter((item) => item.status === 'fulfilled').map((item) => item.value);
-
+  const albumValues = settledAlbumItems.filter(isFulfilled).map((item) => item.value);
+  const end = performance.now();
+  const loadTime = dayjs.duration(end - start);
+  log.info(`Album scan time: ${loadTime.asSeconds()}`);
   return albumValues;
 };

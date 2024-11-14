@@ -2,7 +2,7 @@ import { app, BrowserWindow } from 'electron';
 import { sep } from 'node:path';
 import log from 'electron-log/main';
 import { createIPCHandler } from 'trpc-electron/main';
-import { ensureDirectory, getSettings } from './main/file-ops';
+import { ensureDirectory, getOrCreateSettings } from './main/backend-ops';
 import { createContextCreator, appRouter } from './main/app-router';
 
 log.transports.file.level = false;
@@ -38,7 +38,7 @@ app
   .then(ensureDirectory)
   .then((directoryIsThere) => {
     if (directoryIsThere) {
-      return getSettings({ defaultMusicPath: app.getPath('music') });
+      return getOrCreateSettings();
     } else {
       throw new Error("Settings directory can't be created or accessed");
     }

@@ -1,7 +1,7 @@
 import { initTRPC } from '@trpc/server';
 import { type TRPCContext } from '../types';
 import superjson from 'superjson';
-import { getAlbumDirectories } from './backend-ops';
+import { readAlbumDirectories } from './backend-ops';
 import { z } from 'zod';
 
 export const createContextCreator = (ctx: TRPCContext) => {
@@ -21,7 +21,7 @@ export const appRouter = t.router({
   },
   file: {
     getAlbums: t.procedure.input(z.string().optional()).query(async ({ input }) => {
-      const directoryEntries = await getAlbumDirectories(input);
+      const directoryEntries = await readAlbumDirectories(input);
       return directoryEntries.filter((entry) => entry.tracks?.length ?? 0 > 0);
     })
   }

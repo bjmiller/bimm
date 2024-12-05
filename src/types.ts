@@ -14,12 +14,14 @@ export interface Album {
   tracks?: Track[];
   spotifyGenres?: string[];
   bandcampTags?: string[];
+  manualTags?: string[];
 }
 
 export interface AlbumMetadata {
   mtime?: Date;
   spotifyGenres?: string[];
   bandcampTags?: string[];
+  manualTags?: string[];
 }
 
 export interface Track {
@@ -30,5 +32,6 @@ export interface Track {
   disk?: number | null;
   track?: number | null;
   year?: number;
+  artist?: string;
   includedGenre?: string[];
 }

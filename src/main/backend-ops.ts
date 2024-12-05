@@ -58,7 +58,7 @@ export const ensureDirectory = async () => {
   }
 };
 
-export const getOrCreateSettings = async () => {
+export const readOrCreateSettings = async () => {
   // Check for existence
   try {
     await fs.stat(CONFIG_PATH);
@@ -97,7 +97,7 @@ const isAudio = (filename: string) => {
 
 const fullPathOf = (dirent: Dirent) => `${dirent.parentPath}${sep}${dirent.name}`;
 
-const getTracks = async (dir: string) => {
+const readTracks = async (dir: string) => {
   const mm = await loadMusicMetadata();
   let tracks: Track[] = [];
   let audioDirents: Dirent[] = [];
@@ -127,7 +127,8 @@ const getTracks = async (dir: string) => {
         disk: metadata.common.disk.no,
         track: metadata.common.track.no,
         year: metadata.common.year,
-        includedGenre: metadata.common.genre
+        includedGenre: metadata.common.genre,
+        artist: metadata.common.artist ?? metadata.common.albumartist
       };
     } catch (parseError) {
       log.error(`Unable to parse for metadata: ${dirent.name}: ${messageFrom(parseError)}`);
@@ -141,7 +142,24 @@ const getTracks = async (dir: string) => {
   return tracks;
 };
 
-export const getAlbumDirectories = async (root?: PathLike): Promise<Album[]> => {
+export const fetchSpotifyTags = async (album: Album) => {
+  const searchURLBase = `https://www.chosic.com/api/tools/search`; // ?q=<search>&type=<track|artist>&limit=<number>
+  const artistURLBase = `https://www.chosic.com/api/tools/artists`; // ?ids=<artist IDs, comma separated>
+  const trackURLBase = `https://www.chosic.com/api/tools/tracks`; // no query string, /api/tools/tracks/<id>`
+
+  const firstTrack = album.tracks?.[0];
+  if (firstTrack == null) return;
+
+  const searchFor = new URL(searchURLBase);
+  searchFor.search = new URLSearchParams({
+    q: `${firstTrack.title} - ${firstTrack.artist}`,
+    type: 'track',
+    limit: '10'
+  }).toString();
+  const search = await fetch(searchURLBase);
+};
+
+export const readAlbumDirectories = async (root?: PathLike): Promise<Album[]> => {
   const start = performance.now();
   if (root == null || root === '') return [];
   const dirents = await fs.readdir(root, { withFileTypes: true });
@@ -159,7 +177,7 @@ export const getAlbumDirectories = async (root?: PathLike): Promise<Album[]> => 
       log.error(`Fail to stat ${dirent.name}: ${messageFrom(statError)}`);
     }
 
-    const tracks = await getTracks(fullpath);
+    const tracks = await readTracks(fullpath);
 
     return { filename: dirent.name, fullpath, mtime, tracks };
   };

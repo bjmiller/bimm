@@ -13,7 +13,7 @@ export const AlbumList = () => {
     return (
       <div className="flex flex-row">
         <div className="album-list">Loading... </div>
-        <div className="animate-spin w-6 h-6 pr-[6px] pt-[1px] text-center">&#57862;</div>
+        <div className="animate-spin w-6 h-6 pr-1.5 pt-px text-center">&#57862;</div>
       </div>
     );
   }

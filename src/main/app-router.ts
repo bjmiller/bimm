@@ -2,7 +2,7 @@ import { initTRPC } from '@trpc/server';
 import { type TRPCContext } from '../types';
 import superjson from 'superjson';
 import { readAlbumDirectories } from './backend-ops';
-import { z } from 'zod';
+import { z } from 'zod/v4';
 
 export const createContextCreator = (ctx: TRPCContext) => {
   // eslint-disable-next-line require-await

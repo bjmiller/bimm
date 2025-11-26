@@ -2,7 +2,7 @@ import { resolve } from 'node:path';
 import type webpack from 'webpack';
 import HtmlWebpackPlugin from 'html-webpack-plugin';
 import HtmlInlineScriptPlugin from 'html-inline-script-webpack-plugin';
-import HtmlInlineCssPlugin from 'html-inline-css-webpack-plugin';
+import HtmlInlineCssPlugin from 'html-inline-css-webpack-plugin/build/core/v4.js';
 import MiniCssExtractPlugin from 'mini-css-extract-plugin';
 import CopyWebpackPlugin from 'copy-webpack-plugin';
 
@@ -22,7 +22,7 @@ const mainConfig: webpack.Configuration = {
   },
   resolve: { extensions: ['', '.ts', '.js', '...'] },
   output: {
-    path: resolve(__dirname, 'dist'),
+    path: resolve('dist'),
     filename: 'index.js'
   },
   optimization: {
@@ -49,7 +49,7 @@ const preloadConfig: webpack.Configuration = {
   },
   resolve: { extensions: ['', '.ts', '.js', '...'] },
   output: {
-    path: resolve(__dirname, 'dist'),
+    path: resolve('dist'),
     filename: 'preload.js'
   },
   optimization: {
@@ -90,7 +90,7 @@ const pageConfig: webpack.Configuration = {
   },
   resolve: { extensions: ['', '.ts', '.tsx', '.js', '.svg', '...'] },
   output: {
-    path: resolve(__dirname, 'dist'),
+    path: resolve('dist'),
     filename: 'main.js'
   },
   optimization: {
@@ -106,7 +106,7 @@ const pageConfig: webpack.Configuration = {
       cache: false
     }),
     new HtmlInlineScriptPlugin(),
-    new HtmlInlineCssPlugin({ leaveCSSFile: false })
+    new HtmlInlineCssPlugin.PluginForHtmlWebpackPluginV4({ leaveCSSFile: false })
   ],
   watch: true,
   watchOptions: {

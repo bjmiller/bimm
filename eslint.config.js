@@ -1,22 +1,19 @@
 const js = require('@eslint/js');
-const fix = require('@eslint/compat').fixupPluginRules;
+const { defineConfig } = require('eslint/config');
 const tseslint = require('typescript-eslint');
-/** @type {import('eslint').ESLint.Plugin} */
-// @ts-ignore
 const react = require('eslint-plugin-react');
-// @ts-ignore
-// eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-const hooks = fix(require('eslint-plugin-react-hooks'));
+const hooks = require('eslint-plugin-react-hooks');
 const prettier = require('eslint-plugin-prettier/recommended');
 const globals = require('globals');
 
-const config = tseslint.config(
+const config = defineConfig(
   {
     ignores: ['dist/*']
   },
   js.configs.recommended,
-  ...tseslint.configs.recommendedTypeChecked,
-  ...tseslint.configs.stylisticTypeChecked,
+  tseslint.configs.recommendedTypeChecked,
+  tseslint.configs.stylisticTypeChecked,
+  hooks.configs.flat.recommended,
   {
     languageOptions: {
       globals: {
@@ -33,8 +30,7 @@ const config = tseslint.config(
       }
     },
     plugins: {
-      react,
-      'react-hooks': hooks
+      react
     },
     rules: {
       'prettier/prettier': 'error',

@@ -3,7 +3,7 @@ import { type Dirent, type PathLike } from 'node:fs';
 import os from 'node:os';
 import { sep } from 'node:path';
 import log from 'electron-log/main';
-import { type IAudioMetadata, loadMusicMetadata } from 'music-metadata';
+import { type IAudioMetadata, parseFile } from 'music-metadata';
 import pLimit from 'p-limit';
 import { app } from 'electron';
 import dayjs from 'dayjs';
@@ -98,7 +98,6 @@ const isAudio = (filename: string) => {
 const fullPathOf = (dirent: Dirent) => `${dirent.parentPath}${sep}${dirent.name}`;
 
 const readTracks = async (dir: string) => {
-  const mm = await loadMusicMetadata();
   let tracks: Track[] = [];
   let audioDirents: Dirent[] = [];
   // Get the names of the audio files
@@ -119,7 +118,7 @@ const readTracks = async (dir: string) => {
       fullPath: fullPathOf(dirent)
     };
     try {
-      metadata = await mm.parseFile(fullPath, { duration: true, skipCovers: true });
+      metadata = await parseFile(fullPath, { duration: true, skipCovers: true });
       track = {
         ...track,
         title: metadata.common.title,
@@ -128,7 +127,8 @@ const readTracks = async (dir: string) => {
         track: metadata.common.track.no,
         year: metadata.common.year,
         includedGenre: metadata.common.genre,
-        artist: metadata.common.artist ?? metadata.common.albumartist
+        artist: metadata.common.artist ?? metadata.common.albumartist,
+        albumTitle: metadata.common.album
       };
     } catch (parseError) {
       log.error(`Unable to parse for metadata: ${dirent.name}: ${messageFrom(parseError)}`);
@@ -142,23 +142,6 @@ const readTracks = async (dir: string) => {
   return tracks;
 };
 
-export const fetchSpotifyTags = async (album: Album) => {
-  const searchURLBase = `https://www.chosic.com/api/tools/search`; // ?q=<search>&type=<track|artist>&limit=<number>
-  const artistURLBase = `https://www.chosic.com/api/tools/artists`; // ?ids=<artist IDs, comma separated>
-  const trackURLBase = `https://www.chosic.com/api/tools/tracks`; // no query string, /api/tools/tracks/<id>`
-
-  const firstTrack = album.tracks?.[0];
-  if (firstTrack == null) return;
-
-  const searchFor = new URL(searchURLBase);
-  searchFor.search = new URLSearchParams({
-    q: `${firstTrack.title} - ${firstTrack.artist}`,
-    type: 'track',
-    limit: '10'
-  }).toString();
-  const search = await fetch(searchURLBase);
-};
-
 export const readAlbumDirectories = async (root?: PathLike): Promise<Album[]> => {
   const start = performance.now();
   if (root == null || root === '') return [];
@@ -167,7 +150,7 @@ export const readAlbumDirectories = async (root?: PathLike): Promise<Album[]> =>
   const NUMBER_OF_CONCURRENT_ALBUM_SCANS = 20;
   const limit = pLimit(NUMBER_OF_CONCURRENT_ALBUM_SCANS);
 
-  const albumIteratee = async (dirent: Dirent) => {
+  const albumIteratee = async (dirent: Dirent): Promise<Album> => {
     const fullpath = fullPathOf(dirent);
     let mtime: Date | undefined;
     try {
@@ -179,7 +162,7 @@ export const readAlbumDirectories = async (root?: PathLike): Promise<Album[]> =>
 
     const tracks = await readTracks(fullpath);
 
-    return { filename: dirent.name, fullpath, mtime, tracks };
+    return { filename: dirent.name, fullpath, mtime, tracks, title: tracks[0]?.albumTitle };
   };
 
   const albumItems = dirents.filter((dirent) => dirent.isDirectory()).map((dirent) => limit(albumIteratee, dirent));

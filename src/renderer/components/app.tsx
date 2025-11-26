@@ -6,8 +6,22 @@ import { ErrorBoundary, type FallbackProps } from 'react-error-boundary';
 import { trpcReact } from '../lib/trpc';
 import { AlbumList } from './album-list';
 
+const FIVE_MINUTES = 300000;
+
 const App = () => {
-  const [queryClient] = useState(() => new QueryClient());
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchInterval: FIVE_MINUTES,
+            refetchIntervalInBackground: true
+          }
+        }
+      })
+  );
   const [trpcClient] = useState(() =>
     trpcReact.createClient({
       links: [ipcLink({ transformer: superjson })]

@@ -1,12 +1,9 @@
 @import 'tailwindcss';
-@import './hack.css' layer(base);
+@import './atkinsonmono.css' layer(base);
 
 
 @theme {
-  --font-hack: HackNerd;
-
-  --text-xxs: 0.7rem;
-  --text-xxs--line-height: 0.7rem;
+  --font-atkinsonmono: AtkinsonMono;
 }
 
 /*

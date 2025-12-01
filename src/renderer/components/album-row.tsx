@@ -12,14 +12,16 @@ export type AlbumRowProps = {
 interface CellProps {
   children: ReactNode;
   flexible?: boolean;
+  className?: string;
 }
 
 const Cell = (props: CellProps) => {
   return (
     <td
       className={clsx(
-        'border border-[#f0f0f0] border-r-0 border-l-0 p-0.75 pt-1 px-1.5 whitespace-nowrap',
-        props.flexible ? ['max-w-0 overflow-hidden'] : ['w-0']
+        'p-0.75 pt-1 px-1.5 whitespace-nowrap',
+        props.flexible ? ['max-w-0 overflow-hidden'] : ['w-0'],
+        props.className
       )}
     >
       <span className="inline-block">{props.children}</span>
@@ -36,8 +38,8 @@ export const AlbumRow = (props: AlbumRowProps) => {
         <span>{entry.filename}</span>
       </Cell>
       <Cell>{runningtime ? dayjs.duration(runningtime, 'seconds').format('HH:mm:ss') : null}</Cell>
-      <Cell>{entry.mtime?.toISOString()}</Cell>
-      <Cell>{entry.tracks?.length}</Cell>
+      <Cell className="text-right">{entry.tracks?.length}</Cell>
+      <Cell>{dayjs(entry.mtime).format('YYYY-MM-DD HH:mm')}</Cell>
     </tr>
   );
 };

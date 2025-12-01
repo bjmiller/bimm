@@ -11,24 +11,24 @@ export const AlbumList = () => {
 
   if (albumsQuery.isLoading) {
     return (
-      <div className="flex flex-row">
-        <div className="album-list">Loading... </div>
-        <div className="animate-spin w-6 h-6 pr-1.5 pt-px text-center">&#57862;</div>
+      <div className="album-list flex flex-row">
+        <div className="h-fit">Loading... </div>
+        <div className="animate-spin inline-block h-fit">&#57862;</div>
       </div>
     );
   }
   if (albumsQuery.isSuccess) {
     const entries = albumsQuery.data;
     return (
-      <>
-        <table className="album-list text-xxs border-collapse w-full">
+      <div className="album-list h-lvh overflow-y-scroll flex-auto">
+        <table className="album-list text-xs border-collapse w-full">
           {entries
             .filter((entry) => entry.tracks?.length ?? 0 > 0)
             .map((entry) => (
               <AlbumRow entry={entry} />
             ))}
         </table>
-      </>
+      </div>
     );
   }
 };

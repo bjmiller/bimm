@@ -5,6 +5,7 @@ import superjson from 'superjson';
 import { ErrorBoundary, type FallbackProps } from 'react-error-boundary';
 import { trpcReact } from '../lib/trpc';
 import { AlbumList } from './album-list';
+import SidePanel from './side-panel';
 
 const FIVE_MINUTES = 300000;
 
@@ -38,23 +39,11 @@ const App = () => {
   };
 
   return (
-    /**
-     * This Typescript error is WEIRD.  It seems that tsc attempts to load the
-     * types for react-query from two different places among its built files,
-     * and even though the types are equivalent, they are not assignable to one
-     * another due to the use of private fields.  Oddly, this doesn't come up
-     * while the LSP is type checking, only during the webpack build.  And, only
-     * sometimes?  Also, the issue goes away if I switch the module settings from
-     * "Node10/CommonJS" to "NodeNext".  But, that breaks other things.
-     * The easiest solution is to silence the error, since it's not a "real" issue.
-     * The code runs fine.
-     */
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
     <trpcReact.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
         <ErrorBoundary FallbackComponent={DisplayError}>
-          <div>
+          <div className="w-full h-full flex">
+            <SidePanel />
             <AlbumList />
           </div>
         </ErrorBoundary>

@@ -4,10 +4,13 @@ import duration from 'dayjs/plugin/duration';
 import { AlbumRow } from './album-row';
 dayjs.extend(duration);
 
-export const AlbumList = () => {
-  const rootsQuery = trpcReact.settings.getSettings.useQuery();
-  const root = rootsQuery.data?.directories?.[0];
-  const albumsQuery = trpcReact.file.getAlbums.useQuery(root);
+interface AlbumListProps {
+  selectedRoot: string | undefined;
+}
+
+export const AlbumList = (props: AlbumListProps) => {
+  const { selectedRoot } = props;
+  const albumsQuery = trpcReact.file.getAlbums.useQuery(selectedRoot);
 
   if (albumsQuery.isLoading) {
     return (

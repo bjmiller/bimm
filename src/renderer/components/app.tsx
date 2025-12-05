@@ -4,10 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import superjson from 'superjson';
 import { ErrorBoundary, type FallbackProps } from 'react-error-boundary';
 import { trpcReact } from '../lib/trpc';
-import { AlbumList } from './album-list';
-import SidePanel from './side-panel';
-
-const FIVE_MINUTES = 300000;
+import { Bimm } from './bimm';
 
 const App = () => {
   const [queryClient] = useState(
@@ -17,7 +14,7 @@ const App = () => {
           queries: {
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
-            refetchInterval: FIVE_MINUTES,
+            refetchInterval: false,
             refetchIntervalInBackground: true
           }
         }
@@ -42,10 +39,7 @@ const App = () => {
     <trpcReact.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
         <ErrorBoundary FallbackComponent={DisplayError}>
-          <div className="w-full h-full flex">
-            <SidePanel />
-            <AlbumList />
-          </div>
+          <Bimm />
         </ErrorBoundary>
       </QueryClientProvider>
     </trpcReact.Provider>

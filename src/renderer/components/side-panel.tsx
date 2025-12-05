@@ -1,15 +1,24 @@
+import React from 'react';
+import { type AppSettings } from '../../types';
 import clsx from 'clsx';
 
 export type SidePanelProps = {
-  className?: string;
+  settings: AppSettings;
+  selectedRoot: string | undefined;
+  setSelectedRoot: React.Dispatch<React.SetStateAction<string | undefined>>;
 };
 
-const SidePanel = ({ className }: SidePanelProps) => {
+export const SidePanel = ({ settings, selectedRoot, setSelectedRoot }: SidePanelProps) => {
   return (
-    <div className={clsx('side-panel h-screen w-1/6 bg-[#dfdfdf]', className)}>
-      <div className="side-panel-content">Side Panel</div>
+    <div className="side-panel h-screen w-1/6 bg-[#dfdfdf]">
+      {(settings?.directories ?? []).map((directory) => (
+        <div
+          className={clsx('side-panel-content cursor-pointer', directory === selectedRoot ? 'bg-[#b3b3b3]' : '')}
+          onClick={() => setSelectedRoot(directory)}
+        >
+          {directory.replace(settings.home, '~')}
+        </div>
+      ))}
     </div>
   );
 };
-
-export default SidePanel;

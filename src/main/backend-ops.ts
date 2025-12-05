@@ -79,7 +79,7 @@ export const readOrCreateSettings = async () => {
   }
   try {
     const appSettings = await fs.readFile(CONFIG_PATH, { encoding: 'utf-8' });
-    return JSON.parse(appSettings) as AppSettings;
+    return { ...JSON.parse(appSettings), home: os.homedir() } as AppSettings;
   } catch (readFileError) {
     log.error(`Unable to read config file: ${messageFrom(readFileError)}`);
     return null;

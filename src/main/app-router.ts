@@ -1,13 +1,14 @@
+import os from 'node:os';
 import { initTRPC } from '@trpc/server';
 import { type TRPCContext } from '../types';
 import superjson from 'superjson';
 import { readAlbumDirectories } from './backend-ops';
-import { z } from 'zod/v4';
+import { z } from 'zod';
 
 export const createContextCreator = (ctx: TRPCContext) => {
   // eslint-disable-next-line require-await
   return async () => {
-    ctx.settings = ctx.settings ?? {};
+    ctx.settings = ctx.settings ?? { home: os.homedir() };
     return ctx;
   };
 };

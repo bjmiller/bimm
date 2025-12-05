@@ -1,5 +1,6 @@
 import { app, BrowserWindow } from 'electron';
 import { sep } from 'node:path';
+import os from 'node:os';
 import log from 'electron-log/main';
 import { createIPCHandler } from 'trpc-electron/main';
 import { ensureDirectory, readOrCreateSettings } from './main/backend-ops';
@@ -44,7 +45,7 @@ app
     }
   })
   .then((maybeSettings) => {
-    return maybeSettings ?? {};
+    return maybeSettings ?? { home: os.homedir() };
   })
   .then((appSettings) => {
     const createContext = createContextCreator({ settings: appSettings });

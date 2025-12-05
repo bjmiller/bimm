@@ -1,5 +1,9 @@
 import z from 'zod';
 
+export interface IconProps {
+  className?: string;
+}
+
 export interface AppSettings {
   home: string;
   directories?: string[];

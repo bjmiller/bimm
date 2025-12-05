@@ -6,18 +6,14 @@ import { SidePanel } from './side-panel';
 export const Bimm = () => {
   const settings = trpcReact.settings.getSettings.useQuery();
 
-  const [selectedRoot, setSelectedRoot] = useState(settings.data?.directories?.[0]);
+  const [selected, setSelected] = useState(settings.data?.directories?.[0]);
 
-  if (selectedRoot == null && settings.isSuccess) setSelectedRoot(settings.data?.directories?.[0]);
+  if (selected == null && settings.isSuccess) setSelected(settings.data?.directories?.[0]);
 
   return (
     <div className="w-full h-full flex">
-      <SidePanel
-        settings={settings.data ?? { home: '' }}
-        selectedRoot={selectedRoot}
-        setSelectedRoot={setSelectedRoot}
-      />
-      <AlbumList selectedRoot={selectedRoot} />
+      <SidePanel settings={settings.data ?? { home: '' }} selected={selected} setSelected={setSelected} />
+      <AlbumList selectedRoot={selected} />
     </div>
   );
 };

@@ -33,7 +33,7 @@ export const AlbumRow = (props: AlbumRowProps) => {
   const entry = props.entry;
   const runningtime = entry.tracks?.reduce((memo, track) => memo + (track?.duration ?? 0), 0);
   return (
-    <tr key={entry.filename}>
+    <tr key={entry.filename} className="cursor-default">
       <Cell flexible>
         <span>{entry.filename}</span>
       </Cell>

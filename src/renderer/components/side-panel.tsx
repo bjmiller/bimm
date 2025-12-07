@@ -26,11 +26,17 @@ export const SidePanel = ({ settings, selected, setSelected }: SidePanelProps) =
           <div>{directory.replace(settings.home, '~')}</div>
         </div>
       ))}
-      <div className="inbox-link side-panel-item cursor-pointer mt-4 flex items-center">
+      <div className={clsx('inbox-link side-panel-item cursor-pointer mt-4 flex items-center')}>
         <DownArrowIcon className="mb-1 h-4" />
         <div>Inbox</div>
       </div>
-      <div className="settings-link side-panel-item cursor-pointer flex items-center">
+      <div
+        className={clsx(
+          'settings-link side-panel-item cursor-pointer flex items-center',
+          selected === 'Settings' ? 'bg-[#b3b3b3]' : ''
+        )}
+        onClick={() => setSelected('Settings')}
+      >
         <GearIcon className="mb-1 h-4" />
         <div>Settings</div>
       </div>

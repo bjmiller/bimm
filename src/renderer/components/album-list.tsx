@@ -5,12 +5,12 @@ import { AlbumRow } from './album-row';
 dayjs.extend(duration);
 
 interface AlbumListProps {
-  selectedRoot: string | undefined;
+  selected: string | undefined;
 }
 
 export const AlbumList = (props: AlbumListProps) => {
-  const { selectedRoot } = props;
-  const albumsQuery = trpcReact.file.getAlbums.useQuery(selectedRoot);
+  const { selected } = props;
+  const albumsQuery = trpcReact.file.getAlbums.useQuery(selected);
 
   if (albumsQuery.isLoading) {
     return (

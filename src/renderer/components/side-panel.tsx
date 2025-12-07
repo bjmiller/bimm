@@ -4,42 +4,41 @@ import clsx from 'clsx';
 import { DownArrowIcon } from '../../icons/down-arrow';
 import { GearIcon } from '../../icons/gear';
 import { FolderIcon } from '../../icons/folder';
+import { SidePanelItem } from './side-panel-item';
 
-export type SidePanelProps = {
+export interface SidePanelProps {
   settings: AppSettings;
   selected: string | undefined;
   setSelected: React.Dispatch<React.SetStateAction<string | undefined>>;
-};
+}
 
 export const SidePanel = ({ settings, selected, setSelected }: SidePanelProps) => {
   return (
     <div className="side-panel h-screen w-1/6 bg-[#dfdfdf]">
       {(settings?.directories ?? []).map((directory) => (
-        <div
-          className={clsx(
-            'side-panel-item cursor-pointer flex items-center',
-            directory === selected ? 'bg-[#b3b3b3]' : ''
-          )}
-          onClick={() => setSelected(directory)}
-        >
-          <FolderIcon className="h-4" />
-          <div>{directory.replace(settings.home, '~')}</div>
-        </div>
+        <SidePanelItem
+          itemName={directory}
+          displayName={directory.replace(settings.home, '~')}
+          icon={<FolderIcon className="h-4" />}
+          selected={selected}
+          setSelected={setSelected}
+        />
       ))}
-      <div className={clsx('inbox-link side-panel-item cursor-pointer mt-4 flex items-center')}>
-        <DownArrowIcon className="mb-1 h-4" />
-        <div>Inbox</div>
-      </div>
-      <div
-        className={clsx(
-          'settings-link side-panel-item cursor-pointer flex items-center',
-          selected === 'Settings' ? 'bg-[#b3b3b3]' : ''
-        )}
-        onClick={() => setSelected('Settings')}
-      >
-        <GearIcon className="mb-1 h-4" />
-        <div>Settings</div>
-      </div>
+
+      <SidePanelItem
+        itemName="Inbox"
+        icon={<DownArrowIcon className="mb-1 h-4" />}
+        selected={selected}
+        setSelected={setSelected}
+        className="mt-4"
+      />
+
+      <SidePanelItem
+        itemName="Settings"
+        icon={<GearIcon className="mb-1 h-4" />}
+        selected={selected}
+        setSelected={setSelected}
+      />
     </div>
   );
 };

@@ -5,9 +5,9 @@ import { type Entry } from '../../types';
 import clsx from 'clsx';
 dayjs.extend(duration);
 
-export type AlbumRowProps = {
+export interface AlbumRowProps {
   entry: Entry;
-};
+}
 
 interface CellProps {
   children: ReactNode;

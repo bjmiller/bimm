@@ -4,10 +4,13 @@ export interface IconProps {
   className?: string;
 }
 
-export interface AppSettings {
-  home: string;
-  directories?: string[];
-}
+export const AppSettings = z.object({
+  home: z.string(),
+  directories: z.array(z.string()).optional(),
+  inbox: z.string().optional()
+});
+
+export type AppSettings = z.infer<typeof AppSettings>;
 
 export interface TRPCContext {
   settings?: AppSettings;

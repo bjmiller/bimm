@@ -1,6 +1,5 @@
 import React from 'react';
 import { type AppSettings } from '../../types';
-import clsx from 'clsx';
 import { DownArrowIcon } from '../../icons/down-arrow';
 import { GearIcon } from '../../icons/gear';
 import { FolderIcon } from '../../icons/folder';

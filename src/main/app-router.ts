@@ -1,8 +1,8 @@
 import os from 'node:os';
 import { initTRPC } from '@trpc/server';
-import { type TRPCContext } from '../types';
+import { AppSettings, type TRPCContext } from '../types';
 import superjson from 'superjson';
-import { readAlbumDirectories } from './backend-ops';
+import { readAlbumDirectories, readOrCreateSettings, writeSettings } from './backend-ops';
 import { z } from 'zod';
 
 export const createContextCreator = (ctx: TRPCContext) => {
@@ -16,8 +16,11 @@ export const createContextCreator = (ctx: TRPCContext) => {
 const t = initTRPC.context<TRPCContext>().create({ transformer: superjson });
 export const appRouter = t.router({
   settings: {
-    getSettings: t.procedure.query(({ ctx }) => {
-      return ctx.settings;
+    getSettings: t.procedure.query(async () => {
+      return await readOrCreateSettings();
+    }),
+    writeSettings: t.procedure.input(AppSettings).mutation(async ({ input }) => {
+      return await writeSettings(input);
     })
   },
   file: {

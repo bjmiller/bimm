@@ -9,7 +9,7 @@ import { app } from 'electron';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
 dayjs.extend(duration);
-import { type Track, type AppSettings, type Album } from '../types';
+import { AppSettings, type Track, type Album } from '../types';
 
 log.transports.file.level = false;
 
@@ -79,11 +79,24 @@ export const readOrCreateSettings = async () => {
   }
   try {
     const appSettings = await fs.readFile(CONFIG_PATH, { encoding: 'utf-8' });
-    return { ...JSON.parse(appSettings), home: os.homedir() } as AppSettings;
+    return AppSettings.parse({ ...JSON.parse(appSettings), home: os.homedir() });
   } catch (readFileError) {
-    log.error(`Unable to read config file: ${messageFrom(readFileError)}`);
+    log.error(`Unable to read and parse config file: ${messageFrom(readFileError)}`);
     return null;
   }
+};
+
+export const writeSettings = async (settings: AppSettings) => {
+  try {
+    await fs.writeFile(
+      CONFIG_PATH,
+      // eslint-disable-next-line no-magic-numbers
+      JSON.stringify(settings, (k, v) => (k === 'home' ? undefined : (v as unknown)), 2)
+    );
+  } catch (writeError) {
+    log.error(`Unable to write settings! ${messageFrom(writeError)}`);
+  }
+  return readOrCreateSettings();
 };
 
 // We're trusting that the file extension is enough to tell if a file is an audio track.

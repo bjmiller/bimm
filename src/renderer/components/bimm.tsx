@@ -16,8 +16,7 @@ export const Bimm = () => {
     <div className="w-full h-full flex">
       <SidePanel settings={settings.data ?? { home: '' }} selected={selected} setSelected={setSelected} />
       {albumListSelected && <AlbumList selected={selected} />}
-      {!albumListSelected &&
-        { Inbox: <></>, Settings: <Settings settings={settings.data ?? { home: '' }} /> }[selected ?? '']}
+      {!albumListSelected && { Inbox: <></>, Settings: <Settings /> }[selected ?? '']}
     </div>
   );
 };

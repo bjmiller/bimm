@@ -1,19 +1,11 @@
 import os from 'node:os';
 import { initTRPC } from '@trpc/server';
-import { AppSettings, type TRPCContext } from '../types';
+import { AppSettings } from '../types';
 import superjson from 'superjson';
 import { readAlbumDirectories, readOrCreateSettings, writeSettings } from './backend-ops';
 import { z } from 'zod';
 
-export const createContextCreator = (ctx: TRPCContext) => {
-  // eslint-disable-next-line require-await
-  return async () => {
-    ctx.settings = ctx.settings ?? { home: os.homedir() };
-    return ctx;
-  };
-};
-
-const t = initTRPC.context<TRPCContext>().create({ transformer: superjson });
+const t = initTRPC.create({ transformer: superjson });
 export const appRouter = t.router({
   settings: {
     getSettings: t.procedure.query(async () => {

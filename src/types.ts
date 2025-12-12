@@ -12,10 +12,6 @@ export const AppSettings = z.object({
 
 export type AppSettings = z.infer<typeof AppSettings>;
 
-export interface TRPCContext {
-  settings?: AppSettings;
-}
-
 export const Track = z.object({
   filename: z.string(),
   fullPath: z.string(),

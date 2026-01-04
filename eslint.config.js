@@ -17,7 +17,7 @@ const config = defineConfig(
   {
     languageOptions: {
       globals: {
-        ...globals.es2025,
+        ...globals.es2015,
         ...globals.browser,
         ...globals.node,
         ...globals.jest

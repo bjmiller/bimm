@@ -1,4 +1,5 @@
-import { trpcReact } from '../lib/trpc';
+import { useTRPC } from '../lib/trpc';
+import { useQuery } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
 import { AlbumRow } from './album-row';
@@ -10,7 +11,8 @@ interface AlbumListProps {
 
 export const AlbumList = (props: AlbumListProps) => {
   const { selected } = props;
-  const albumsQuery = trpcReact.file.getAlbums.useQuery(selected);
+  const trpc = useTRPC();
+  const albumsQuery = useQuery(trpc.file.getAlbums.queryOptions(selected));
 
   if (albumsQuery.isLoading) {
     return (

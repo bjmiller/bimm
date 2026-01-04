@@ -1,4 +1,3 @@
-import os from 'node:os';
 import { initTRPC } from '@trpc/server';
 import { AppSettings } from '../types';
 import superjson from 'superjson';

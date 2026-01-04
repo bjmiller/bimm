@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { ipcLink } from 'trpc-electron/renderer';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { createTRPCClient } from '@trpc/client';
 import superjson from 'superjson';
 import { ErrorBoundary, type FallbackProps } from 'react-error-boundary';
-import { trpcReact } from '../lib/trpc';
+import { TRPCProvider } from '../lib/trpc';
 import { Bimm } from './bimm';
+import { type AppRouter } from '../../main/app-router';
 
 const App = () => {
   const [queryClient] = useState(
@@ -21,7 +23,7 @@ const App = () => {
       })
   );
   const [trpcClient] = useState(() =>
-    trpcReact.createClient({
+    createTRPCClient<AppRouter>({
       links: [ipcLink({ transformer: superjson })]
     })
   );
@@ -36,13 +38,13 @@ const App = () => {
   };
 
   return (
-    <trpcReact.Provider client={trpcClient} queryClient={queryClient}>
-      <QueryClientProvider client={queryClient}>
+    <QueryClientProvider client={queryClient}>
+      <TRPCProvider trpcClient={trpcClient} queryClient={queryClient}>
         <ErrorBoundary FallbackComponent={DisplayError}>
           <Bimm />
         </ErrorBoundary>
-      </QueryClientProvider>
-    </trpcReact.Provider>
+      </TRPCProvider>
+    </QueryClientProvider>
   );
 };
 

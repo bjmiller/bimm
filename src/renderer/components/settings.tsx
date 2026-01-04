@@ -1,9 +1,11 @@
 import { useForm } from '@tanstack/react-form';
-import { trpcReact } from '../lib/trpc';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { useTRPC } from '../lib/trpc';
 
 export const Settings = () => {
-  const settings = trpcReact.settings.getSettings.useQuery();
-  const saveMutation = trpcReact.settings.writeSettings.useMutation();
+  const trpc = useTRPC();
+  const settings = useQuery(trpc.settings.getSettings.queryOptions());
+  const saveMutation = useMutation(trpc.settings.writeSettings.mutationOptions());
   const form = useForm({
     defaultValues: settings.data,
 

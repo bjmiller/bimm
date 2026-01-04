@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { trpcReact } from '../lib/trpc';
+import { useTRPC } from '../lib/trpc';
 import { AlbumList } from './album-list';
 import { SidePanel } from './side-panel';
 import { Settings } from './settings';
+import { useQuery } from '@tanstack/react-query';
 
 export const Bimm = () => {
-  const settings = trpcReact.settings.getSettings.useQuery();
+  const trpc = useTRPC();
+  const settings = useQuery(trpc.settings.getSettings.queryOptions());
 
   const [selected, setSelected] = useState(settings.data?.directories?.[0]);
 

@@ -2,3 +2,4 @@ node_modules
 notes.md
 dist
 .env
+.DS_Store

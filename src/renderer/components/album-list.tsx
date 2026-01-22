@@ -18,15 +18,15 @@ export const AlbumList = (props: AlbumListProps) => {
     return (
       <div className="album-list flex flex-row">
         <div className="h-fit">Loading... </div>
-        <div className="animate-spin inline-block h-fit">&#57862;</div>
+        <div className="inline-block h-fit animate-spin">&#57862;</div>
       </div>
     );
   }
   if (albumsQuery.isSuccess) {
     const entries = albumsQuery.data;
     return (
-      <div className="album-list h-lvh overflow-y-scroll flex-auto">
-        <table className="album-list text-xs border-collapse w-full">
+      <div className="album-list h-lvh flex-auto overflow-y-scroll">
+        <table className="album-list w-full border-collapse text-xs">
           {entries
             .filter((entry) => entry.tracks?.length ?? 0 > 0)
             .map((entry) => (

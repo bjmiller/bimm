@@ -8,7 +8,7 @@ const config = {
   semi: true,
   singleQuote: true,
   // eslint-disable-next-line no-magic-numbers
-  printWidth: 110,
+  printWidth: 120,
   trailingComma: 'none',
   quoteProps: 'consistent'
 };

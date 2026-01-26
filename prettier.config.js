@@ -7,7 +7,6 @@ const config = {
   jsxSingleQuote: false,
   semi: true,
   singleQuote: true,
-  // eslint-disable-next-line no-magic-numbers
   printWidth: 120,
   trailingComma: 'none',
   quoteProps: 'consistent'

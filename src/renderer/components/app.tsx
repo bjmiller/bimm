@@ -30,7 +30,7 @@ const App = () => {
 
   const DisplayError = ({ error }: FallbackProps) => {
     return (
-      <div className="flex flex-col bg-red-400 text-red-950 p-5">
+      <div className="flex flex-col bg-red-400 p-5 text-red-950">
         <div className="p-2.5">{(error as Error).message}</div>
         <div className="p-2.5 text-xs">{(error as Error).stack}</div>
       </div>

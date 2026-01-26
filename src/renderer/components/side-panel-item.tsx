@@ -23,7 +23,7 @@ export const SidePanelItem = ({
     <>
       <div
         className={clsx(
-          `side-panel-item cursor-pointer flex items-center ${className}`,
+          `side-panel-item flex cursor-pointer items-center ${className}`,
           selected === itemName ? 'bg-[#b3b3b3]' : ''
         )}
         onClick={() => setSelected(itemName)}

@@ -15,7 +15,7 @@ export const Bimm = () => {
   const albumListSelected = (selected == null || settings.data?.directories?.includes(selected)) ?? true;
 
   return (
-    <div className="w-full h-full flex">
+    <div className="flex h-full w-full">
       <SidePanel settings={settings.data ?? { home: '' }} selected={selected} setSelected={setSelected} />
       {albumListSelected && <AlbumList selected={selected} />}
       {!albumListSelected && { Inbox: <></>, Settings: <Settings /> }[selected ?? '']}

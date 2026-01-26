@@ -19,7 +19,7 @@ const Cell = (props: CellProps) => {
   return (
     <td
       className={clsx(
-        'p-0.75 pt-1 px-1.5 whitespace-nowrap',
+        'p-0.75 px-1.5 pt-1 whitespace-nowrap',
         props.flexible ? ['max-w-0 overflow-hidden'] : ['w-0'],
         props.className
       )}

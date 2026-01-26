@@ -18,7 +18,7 @@ export const Settings = () => {
   });
 
   return (
-    <div className="p-1 w-full">
+    <div className="w-full p-1">
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -36,7 +36,7 @@ export const Settings = () => {
                   name={field.name}
                   value={field.state.value?.join('\n')}
                   onChange={(e) => field.handleChange(e.target.value.split('\n'))}
-                  className="border border-neutral-700 rounded-[3px] w-11/12 h-16 p-1 text-sm text-[#3b3b3b]"
+                  className="h-16 w-11/12 rounded-[3px] border border-neutral-700 p-1 text-sm text-[#3b3b3b]"
                 />
               </>
             );
@@ -53,7 +53,7 @@ export const Settings = () => {
                   name={field.name}
                   value={field.state.value}
                   onChange={(e) => field.handleChange(e.target.value)}
-                  className="border border-neutral-700 rounded-[3px] w-11/12 p-1 text-sm text-[#3b3b3b]"
+                  className="w-11/12 rounded-[3px] border border-neutral-700 p-1 text-sm text-[#3b3b3b]"
                 />
               </>
             );
@@ -68,7 +68,7 @@ export const Settings = () => {
               e.stopPropagation();
               void form.handleSubmit();
             }}
-            className="mt-2 inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 px-4 py-2 has-[>svg]:px-3"
+            className="focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-background hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 mt-2 inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm font-medium whitespace-nowrap shadow-xs transition-all outline-none focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 has-[>svg]:px-3 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
           >
             Save
           </button>

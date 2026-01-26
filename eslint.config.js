@@ -49,7 +49,6 @@ const config = defineConfig(
       'max-len': [
         'error',
         {
-          // eslint-disable-next-line no-magic-numbers
           code: 120,
           ignoreTrailingComments: true,
           ignoreUrls: true,
@@ -86,8 +85,7 @@ const config = defineConfig(
         'error',
         {
           ignore: [-1, 0, 1],
-          ignoreArrayIndexes: true,
-          detectObjects: true
+          ignoreArrayIndexes: true
         }
       ],
       'no-misleading-character-class': ['error'],

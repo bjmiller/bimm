@@ -15,6 +15,7 @@ log.transports.file.level = false;
 
 const APP_PATH = `${os.homedir()}${sep}.bimm`;
 const CONFIG_PATH = `${APP_PATH}${sep}.bimmrc.json`;
+const SPACES = 2;
 
 const isNodeError = (item: unknown): item is NodeJS.ErrnoException => {
   return item != null && typeof item === 'object' && Object.hasOwn(item, 'code') && Object.hasOwn(item, 'errno');
@@ -66,8 +67,7 @@ export const readOrCreateSettings = async () => {
     if (isNodeError(statError) && statError.code === 'ENOENT') {
       log.log(`Config file not present, creating a new one`);
       try {
-        // eslint-disable-next-line no-magic-numbers
-        await fs.writeFile(CONFIG_PATH, JSON.stringify({ directories: [app.getPath('music')] }, null, 2));
+        await fs.writeFile(CONFIG_PATH, JSON.stringify({ directories: [app.getPath('music')] }, null, SPACES));
       } catch (writeError) {
         log.error(`Failed to write initial config file: ${messageFrom(writeError)}`);
         return null;
@@ -90,8 +90,7 @@ export const writeSettings = async (settings: AppSettings) => {
   try {
     await fs.writeFile(
       CONFIG_PATH,
-      // eslint-disable-next-line no-magic-numbers
-      JSON.stringify(settings, (k, v) => (k === 'home' ? undefined : (v as unknown)), 2)
+      JSON.stringify(settings, (k, v) => (k === 'home' ? undefined : (v as unknown)), SPACES)
     );
   } catch (writeError) {
     log.error(`Unable to write settings! ${messageFrom(writeError)}`);

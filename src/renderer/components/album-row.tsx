@@ -1,45 +1,28 @@
-import { type ReactNode } from 'react';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
 import { type Entry } from '../../types';
-import clsx from 'clsx';
+import { flexRender, type Row } from '@tanstack/react-table';
+import { Cell } from './cell';
 dayjs.extend(duration);
 
 export interface AlbumRowProps {
-  entry: Entry;
+  row: Row<Entry>;
 }
 
-interface CellProps {
-  children: ReactNode;
-  flexible?: boolean;
-  className?: string;
-}
-
-const Cell = (props: CellProps) => {
-  return (
-    <td
-      className={clsx(
-        'p-0.75 px-1.5 pt-1 whitespace-nowrap',
-        props.flexible ? ['max-w-0 overflow-hidden'] : ['w-0'],
-        props.className
-      )}
-    >
-      <span className="inline-block">{props.children}</span>
-    </td>
-  );
+const flexById = (row: Row<Entry>, id: string) => {
+  const cell = row.getVisibleCells().find((c) => c.column.id === id);
+  if (cell == null) return null;
+  return flexRender(cell.column.columnDef.cell, cell.getContext()) ?? null;
 };
 
 export const AlbumRow = (props: AlbumRowProps) => {
-  const entry = props.entry;
-  const runningtime = entry.tracks?.reduce((memo, track) => memo + (track?.duration ?? 0), 0);
+  const row = props.row;
   return (
-    <tr key={entry.filename} className="cursor-default">
-      <Cell flexible>
-        <span>{entry.filename}</span>
-      </Cell>
-      <Cell>{runningtime ? dayjs.duration(runningtime, 'seconds').format('HH:mm:ss') : null}</Cell>
-      <Cell className="text-right">{entry.tracks?.length}</Cell>
-      <Cell>{dayjs(entry.mtime).format('YYYY-MM-DD HH:mm')}</Cell>
+    <tr key={row.id} className="cursor-default">
+      <Cell flexible>{flexById(row, 'album')}</Cell>
+      <Cell>{flexById(row, 'runningtime')}</Cell>
+      <Cell className="text-right">{flexById(row, 'numberoftracks')}</Cell>
+      <Cell>{flexById(row, 'modified')}</Cell>
     </tr>
   );
 };

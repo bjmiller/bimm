@@ -128,7 +128,6 @@ const config = defineConfig(
       'react/button-has-type': ['error'],
       'react/no-array-index-key': ['error'],
       'react/no-access-state-in-setstate': ['error'],
-      'react/no-did-update-set-state': ['error'],
       'react/no-typos': ['error'],
       'react/no-will-update-set-state': ['error'],
       'react/self-closing-comp': [
@@ -161,12 +160,12 @@ const config = defineConfig(
     },
     settings: {
       react: {
-        version: 'detect'
+        version: '19'
       }
     }
   },
   {
-    files: ['eslint.config.cjs', 'eslint.config.js'],
+    files: ['eslint.config.js'],
     rules: {
       '@typescript-eslint/ban-ts-comment': 'off',
       '@typescript-eslint/no-require-imports': 'off'

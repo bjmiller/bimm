@@ -18,7 +18,7 @@ const flexById = (row: Row<Entry>, id: string) => {
 export const AlbumRow = (props: AlbumRowProps) => {
   const row = props.row;
   return (
-    <tr key={row.id} className="cursor-default">
+    <tr key={row.id} className="cursor-default even:bg-[#f4f5f5]">
       <Cell flexible>{flexById(row, 'album')}</Cell>
       <Cell>{flexById(row, 'runningtime')}</Cell>
       <Cell className="text-right">{flexById(row, 'numberoftracks')}</Cell>

@@ -33,7 +33,7 @@ const columns = [
   }),
   columnHelper.accessor(runningtimeAccessorFn, {
     id: 'runningtime',
-    header: 'Running Time',
+    header: 'Time',
     cell: (ctx) => {
       const runningtime = ctx.getValue();
       return runningtime ? dayjs.duration(runningtime, 'seconds').format('HH:mm:ss') : '';
@@ -79,10 +79,18 @@ export const AlbumList = (props: AlbumListProps) => {
     );
   }
   if (albumsQuery.isSuccess) {
+    const headers = table.getFlatHeaders();
     const rows = table.getRowModel().rows;
     return (
       <div className="album-list h-lvh flex-auto overflow-y-scroll">
         <table className="album-list w-full border-collapse text-xs">
+          <thead className="divide-x divide-solid">
+            {headers.map((header) => (
+              <th className="bold border-gray-400 bg-[#dfdfdf] p-0.75 px-1.5 pt-1 text-left">
+                {header.column.columnDef.header?.toString()}
+              </th>
+            ))}
+          </thead>
           <tbody>
             {rows.map((row) => (
               <AlbumRow row={row} />

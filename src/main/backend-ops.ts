@@ -110,8 +110,8 @@ const isAudio = (filename: string) => {
 const fullPathOf = (dirent: Dirent) => `${dirent.parentPath}${sep}${dirent.name}`;
 
 const readTracks = async (dir: string) => {
-  let tracks: Track[] = [];
-  let audioDirents: Dirent[] = [];
+  // let tracks: Track[];
+  let audioDirents: Dirent[];
   // Get the names of the audio files
   try {
     const dirents = await fs.readdir(dir, { withFileTypes: true });
@@ -149,7 +149,7 @@ const readTracks = async (dir: string) => {
   });
 
   const settledParses = await Promise.allSettled(parses);
-  tracks = settledParses.filter(isFulfilled).map((item) => item.value);
+  const tracks = settledParses.filter(isFulfilled).map((item) => item.value);
 
   return tracks;
 };

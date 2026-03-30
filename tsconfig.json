@@ -10,6 +10,7 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "noUncheckedIndexedAccess": true,
+    "noUncheckedSideEffectImports": true,
     "moduleResolution": "bundler",
     "checkJs": true,
     "outDir": "dist",
@@ -18,7 +19,7 @@
       "dom",
       "dom.iterable",
       "ES2022"
-    ],
+    ]
   },
   "include": [
     "src",

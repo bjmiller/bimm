@@ -1,5 +1,5 @@
 import { resolve } from 'node:path';
-import type webpack from 'webpack';
+import webpack from 'webpack';
 import HtmlWebpackPlugin from 'html-webpack-plugin';
 import HtmlInlineScriptPlugin from 'html-inline-script-webpack-plugin';
 import HtmlInlineCssPlugin from 'html-inline-css-webpack-plugin/build/core/v4.js';
@@ -28,7 +28,10 @@ const mainConfig: webpack.Configuration = {
   optimization: {
     minimize: false
   },
-  plugins: [new CopyWebpackPlugin({ patterns: [{ from: 'src/icons', to: 'icons' }] })],
+  plugins: [
+    new CopyWebpackPlugin({ patterns: [{ from: 'src/icons/*.png', to: 'icons/[name][ext]' }] }),
+    new webpack.optimize.LimitChunkCountPlugin({ maxChunks: 1 })
+  ],
   watch: true,
   watchOptions: {
     aggregateTimeout

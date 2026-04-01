@@ -1,6 +1,7 @@
 import { useTRPC } from '../lib/trpc';
 import { useQuery } from '@tanstack/react-query';
 import {
+  type SortingState,
   createColumnHelper,
   useReactTable,
   getCoreRowModel,
@@ -11,8 +12,10 @@ import {
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
 import { AlbumRow } from './album-row';
+import { ChevronUpIcon } from '../../icons/chevron-up';
+import { ChevronDownIcon } from '../../icons/chevron-down';
 import { type Entry } from '../../types';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 dayjs.extend(duration);
 
 interface AlbumListProps {
@@ -60,10 +63,16 @@ export const AlbumList = (props: AlbumListProps) => {
 
   const data = useMemo(() => albumsQuery.data?.filter((entry) => entry.tracks?.length !== 0) ?? [], [albumsQuery.data]);
 
+  const [sorting, setSorting] = useState<SortingState>([{ id: 'modified', desc: true }]);
+
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data,
     columns,
+    state: { sorting },
+    onSortingChange: setSorting,
+    sortDescFirst: true,
+    enableSortingRemoval: false,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -86,8 +95,15 @@ export const AlbumList = (props: AlbumListProps) => {
         <table className="album-list w-full border-collapse text-xs">
           <thead className="divide-x divide-solid">
             {headers.map((header) => (
-              <th className="bold border-gray-400 bg-[#dfdfdf] p-0.75 px-1.5 pt-1 text-left">
-                {header.column.columnDef.header?.toString()}
+              <th
+                className="bold cursor-pointer border-gray-400 bg-[#dfdfdf] p-0.75 px-1.5 pt-1 text-left select-none"
+                onClick={header.column.getToggleSortingHandler()}
+              >
+                <span className="inline-flex items-center gap-0.5">
+                  {header.column.columnDef.header?.toString()}
+                  {header.column.getIsSorted() === 'asc' && <ChevronUpIcon className="size-3" />}
+                  {header.column.getIsSorted() === 'desc' && <ChevronDownIcon className="size-3" />}
+                </span>
               </th>
             ))}
           </thead>

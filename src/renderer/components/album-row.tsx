@@ -7,6 +7,7 @@ dayjs.extend(duration);
 
 export interface AlbumRowProps {
   row: Row<Entry>;
+  onClick?: (event: unknown) => void;
 }
 
 const flexById = (row: Row<Entry>, id: string) => {
@@ -17,8 +18,13 @@ const flexById = (row: Row<Entry>, id: string) => {
 
 export const AlbumRow = (props: AlbumRowProps) => {
   const row = props.row;
+  const selected = row.getIsSelected() ? 'bg-blue-200' : 'even:bg-[#f4f5f5]';
   return (
-    <tr key={row.id} className="cursor-default even:bg-[#f4f5f5]">
+    <tr
+      key={row.id}
+      className={`cursor-default ${selected} inset-ring-orange-400 hover:inset-ring-1`}
+      onClick={props.onClick}
+    >
       <Cell flexible>{flexById(row, 'album')}</Cell>
       <Cell>{flexById(row, 'runningtime')}</Cell>
       <Cell className="text-right">{flexById(row, 'numberoftracks')}</Cell>

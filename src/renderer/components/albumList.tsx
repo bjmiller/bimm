@@ -9,16 +9,17 @@ import {
   getSortedRowModel,
   getExpandedRowModel,
   type RowSelectionState,
-  type Row
+  type Row as TanStackRow
 } from '@tanstack/react-table';
-import { useKeyHold } from '@tanstack/react-hotkeys';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
-import { AlbumRow } from './album-row';
-import { ChevronUpIcon } from '../../icons/chevron-up';
-import { ChevronDownIcon } from '../../icons/chevron-down';
+import { AlbumRow } from './albumRow';
+import { ChevronUpIcon } from '../../icons/chevronUp';
+import { ChevronDownIcon } from '../../icons/chevronDown';
 import { type Entry } from '../../types';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { RowFocus } from '../lib/rowFocus';
+import { useRowFocusNavigation } from '../lib/useRowFocusNavigation';
 dayjs.extend(duration);
 
 interface AlbumListProps {
@@ -61,7 +62,11 @@ const columns = [
 
 const getRowId = (row: Entry) => row.filename;
 
-const modKey = (navigator?.platform ?? '').toLowerCase().includes('mac') ? 'Meta' : 'Control';
+const isMac = (globalThis.navigator?.platform ?? '').toLowerCase().includes('mac');
+type AlbumListRowFocusState = string | undefined;
+type Row<TData> = TanStackRow<TData> & {
+  setFocused: (value?: boolean) => void;
+};
 
 export const AlbumList = (props: AlbumListProps) => {
   const { selected } = props;
@@ -72,15 +77,19 @@ export const AlbumList = (props: AlbumListProps) => {
 
   const [sorting, setSorting] = useState<SortingState>([{ id: 'modified', desc: true }]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [rowFocus, setRowFocus] = useState<AlbumListRowFocusState>(undefined);
+  const listRef = useRef<HTMLDivElement>(null);
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
+    _features: [RowFocus],
     data,
     columns,
     getRowId,
-    state: { sorting, rowSelection },
+    state: { sorting, rowSelection, rowFocus },
     onSortingChange: setSorting,
     onRowSelectionChange: setRowSelection,
+    onRowFocusChange: setRowFocus,
     sortDescFirst: true,
     enableSortingRemoval: false,
     getCoreRowModel: getCoreRowModel(),
@@ -89,15 +98,27 @@ export const AlbumList = (props: AlbumListProps) => {
     getExpandedRowModel: getExpandedRowModel()
   });
 
-  const isMod = useKeyHold(modKey);
+  useRowFocusNavigation({
+    data,
+    enabled: albumsQuery.isSuccess,
+    listRef,
+    rowFocus,
+    table
+  });
+
   const rowClickHandler = useCallback(
-    (row: Row<Entry>) => (_event: unknown) => {
-      if (!isMod) {
+    (row: Row<Entry>) => (clickEvent: React.MouseEvent<HTMLTableRowElement>) => {
+      const additiveSelection = isMac ? clickEvent.metaKey : clickEvent.ctrlKey;
+
+      row.setFocused(true);
+
+      if (!additiveSelection) {
         table.resetRowSelection(true);
       }
+
       row.toggleSelected();
     },
-    [isMod, table]
+    [table]
   );
 
   if (albumsQuery.isLoading) {
@@ -110,9 +131,15 @@ export const AlbumList = (props: AlbumListProps) => {
   }
   if (albumsQuery.isSuccess) {
     const headers = table.getFlatHeaders();
-    const rows = table.getRowModel().rows;
+    const rows = table.getRowModel().rows as Row<Entry>[];
+
     return (
-      <div className="album-list h-lvh flex-auto overflow-y-scroll">
+      <div
+        ref={listRef}
+        className="album-list h-lvh flex-auto overflow-y-scroll outline-none"
+        onMouseDownCapture={() => listRef.current?.focus({ preventScroll: true })}
+        tabIndex={0}
+      >
         <table className="album-list w-full border-collapse text-xs">
           <thead className="divide-x divide-solid">
             {headers.map((header) => (

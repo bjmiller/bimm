@@ -2,8 +2,8 @@ import { app, BrowserWindow } from 'electron';
 import { sep } from 'node:path';
 import log from 'electron-log/main';
 import { createIPCHandler } from 'trpc-electron/main';
-import { ensureDirectory, readOrCreateSettings } from './main/backend-ops';
-import { appRouter } from './main/app-router';
+import { ensureDirectory, readOrCreateSettings } from './main/backendOps';
+import { appRouter } from './main/appRouter';
 
 log.transports.file.level = false;
 log.initialize();
@@ -19,7 +19,7 @@ const createWindow = () => {
     height,
     width,
     title: 'BIMM',
-    icon: `${__dirname}${sep}icons${sep}musical-note-512.png`
+    icon: `${__dirname}${sep}icons${sep}musicalNote512.png`
   });
 
   win

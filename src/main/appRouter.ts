@@ -1,7 +1,7 @@
 import { initTRPC } from '@trpc/server';
 import { AppSettings } from '../types';
 import superjson from 'superjson';
-import { readAlbumDirectories, readOrCreateSettings, writeSettings } from './backend-ops';
+import { readAlbumDirectories, readOrCreateSettings, writeSettings } from './backendOps';
 import { z } from 'zod';
 
 const t = initTRPC.create({ transformer: superjson });

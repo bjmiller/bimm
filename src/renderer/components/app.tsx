@@ -6,7 +6,7 @@ import superjson from 'superjson';
 import { ErrorBoundary, type FallbackProps } from 'react-error-boundary';
 import { TRPCProvider } from '../lib/trpc';
 import { Bimm } from './bimm';
-import { type AppRouter } from '../../main/app-router';
+import { type AppRouter } from '../../main/appRouter';
 
 const App = () => {
   const [queryClient] = useState(

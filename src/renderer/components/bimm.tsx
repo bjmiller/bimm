@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTRPC } from '../lib/trpc';
-import { AlbumList } from './album-list';
-import { SidePanel } from './side-panel';
+import { AlbumList } from './albumList';
+import { SidePanel } from './sidePanel';
 import { Settings } from './settings';
 import { useQuery } from '@tanstack/react-query';
 

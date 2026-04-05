@@ -1,9 +1,9 @@
 import React from 'react';
 import { type AppSettings } from '../../types';
-import { DownArrowIcon } from '../../icons/down-arrow';
+import { DownArrowIcon } from '../../icons/downArrow';
 import { GearIcon } from '../../icons/gear';
 import { FolderIcon } from '../../icons/folder';
-import { SidePanelItem } from './side-panel-item';
+import { SidePanelItem } from './sidePanelItem';
 
 export interface SidePanelProps {
   settings: AppSettings;

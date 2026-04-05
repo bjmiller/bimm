@@ -4,6 +4,7 @@ import { AlbumList } from './albumList';
 import { SidePanel } from './sidePanel';
 import { Settings } from './settings';
 import { useQuery } from '@tanstack/react-query';
+import { useAppFocusManagement } from '../lib/focusManagement';
 
 export const Bimm = () => {
   const trpc = useTRPC();
@@ -13,12 +14,36 @@ export const Bimm = () => {
 
   if (selected == null && settings.isSuccess) setSelected(settings.data?.directories?.[0]);
   const albumListSelected = (selected == null || settings.data?.directories?.includes(selected)) ?? true;
+  const {
+    clearAlbumListRowFocus,
+    focusAlbumListFirstRowRequest,
+    mainPaneRef,
+    onRootBlurCapture,
+    onRootFocusCapture,
+    sidePanelRef
+  } = useAppFocusManagement({ albumListSelected });
 
   return (
-    <div className="flex h-full w-full">
-      <SidePanel settings={settings.data ?? { home: '' }} selected={selected} setSelected={setSelected} />
-      {albumListSelected && <AlbumList selected={selected} />}
-      {!albumListSelected && { Inbox: <></>, Settings: <Settings /> }[selected ?? '']}
+    <div className="flex h-full w-full" onBlurCapture={onRootBlurCapture} onFocusCapture={onRootFocusCapture}>
+      <SidePanel
+        paneRef={sidePanelRef}
+        settings={settings.data ?? { home: '' }}
+        selected={selected}
+        setSelected={setSelected}
+      />
+      {albumListSelected && (
+        <AlbumList
+          clearRowFocus={clearAlbumListRowFocus}
+          focusFirstRowRequest={focusAlbumListFirstRowRequest}
+          paneRef={mainPaneRef}
+          selected={selected}
+        />
+      )}
+      {!albumListSelected &&
+        {
+          Inbox: <div ref={mainPaneRef} className="flex-1 outline-none" tabIndex={0} />,
+          Settings: <Settings paneRef={mainPaneRef} />
+        }[selected ?? '']}
     </div>
   );
 };

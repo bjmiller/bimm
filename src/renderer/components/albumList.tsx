@@ -17,12 +17,15 @@ import { AlbumRow } from './albumRow';
 import { ChevronUpIcon } from '../../icons/chevronUp';
 import { ChevronDownIcon } from '../../icons/chevronDown';
 import { type Entry } from '../../types';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState, type RefObject } from 'react';
+import { useAlbumListFocusManagement } from '../lib/focusManagement';
 import { RowFocus } from '../lib/rowFocus';
-import { useRowFocusNavigation } from '../lib/useRowFocusNavigation';
 dayjs.extend(duration);
 
 interface AlbumListProps {
+  clearRowFocus: boolean;
+  focusFirstRowRequest: number;
+  paneRef: RefObject<HTMLDivElement | null>;
   selected: string | undefined;
 }
 
@@ -69,7 +72,7 @@ type Row<TData> = TanStackRow<TData> & {
 };
 
 export const AlbumList = (props: AlbumListProps) => {
-  const { selected } = props;
+  const { clearRowFocus, focusFirstRowRequest, paneRef: listRef, selected } = props;
   const trpc = useTRPC();
   const albumsQuery = useQuery(trpc.file.getAlbums.queryOptions(selected));
 
@@ -78,7 +81,6 @@ export const AlbumList = (props: AlbumListProps) => {
   const [sorting, setSorting] = useState<SortingState>([{ id: 'modified', desc: true }]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [rowFocus, setRowFocus] = useState<AlbumListRowFocusState>(undefined);
-  const listRef = useRef<HTMLDivElement>(null);
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
@@ -98,11 +100,14 @@ export const AlbumList = (props: AlbumListProps) => {
     getExpandedRowModel: getExpandedRowModel()
   });
 
-  useRowFocusNavigation({
+  const { onPaneMouseDownCapture } = useAlbumListFocusManagement({
+    clearRowFocus,
     data,
     enabled: albumsQuery.isSuccess,
+    focusFirstRowRequest,
     listRef,
     rowFocus,
+    setRowFocus,
     table
   });
 
@@ -137,7 +142,7 @@ export const AlbumList = (props: AlbumListProps) => {
       <div
         ref={listRef}
         className="album-list h-lvh flex-auto overflow-y-scroll outline-none"
-        onMouseDownCapture={() => listRef.current?.focus({ preventScroll: true })}
+        onMouseDownCapture={onPaneMouseDownCapture}
         tabIndex={0}
       >
         <table className="album-list w-full border-collapse text-xs">

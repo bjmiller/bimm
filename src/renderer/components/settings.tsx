@@ -1,8 +1,13 @@
+import { type RefObject } from 'react';
 import { useForm } from '@tanstack/react-form';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useTRPC } from '../lib/trpc';
 
-export const Settings = () => {
+interface SettingsProps {
+  paneRef: RefObject<HTMLDivElement | null>;
+}
+
+export const Settings = ({ paneRef }: SettingsProps) => {
   const trpc = useTRPC();
   const settings = useQuery(trpc.settings.getSettings.queryOptions());
   const saveMutation = useMutation(trpc.settings.writeSettings.mutationOptions());
@@ -18,7 +23,12 @@ export const Settings = () => {
   });
 
   return (
-    <div className="w-full p-1">
+    <div
+      ref={paneRef}
+      className="w-full p-1 outline-none"
+      onMouseDownCapture={() => paneRef.current?.focus({ preventScroll: true })}
+      tabIndex={0}
+    >
       <form
         onSubmit={(e) => {
           e.preventDefault();

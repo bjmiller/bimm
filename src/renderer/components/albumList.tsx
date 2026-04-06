@@ -145,20 +145,22 @@ export const AlbumList = (props: AlbumListProps) => {
         onMouseDownCapture={onPaneMouseDownCapture}
         tabIndex={0}
       >
-        <table className="album-list w-full border-collapse text-xs">
-          <thead className="divide-x divide-solid">
-            {headers.map((header) => (
-              <th
-                className="bold cursor-pointer border-gray-400 bg-[#dfdfdf] p-0.75 px-1.5 pt-1 text-left select-none"
-                onClick={header.column.getToggleSortingHandler()}
-              >
-                <span className="inline-flex items-center gap-0.5">
-                  {header.column.columnDef.header?.toString()}
-                  {header.column.getIsSorted() === 'asc' && <ChevronUpIcon className="size-3" />}
-                  {header.column.getIsSorted() === 'desc' && <ChevronDownIcon className="size-3" />}
-                </span>
-              </th>
-            ))}
+        <table className="album-list w-full border-separate border-spacing-0 text-xs">
+          <thead>
+            <tr>
+              {headers.map((header) => (
+                <th
+                  className="bold sticky top-0 z-10 cursor-pointer border-r border-gray-400 bg-[#dfdfdf] p-0.75 px-1.5 pt-1 text-left select-none last:border-r-0"
+                  onClick={header.column.getToggleSortingHandler()}
+                >
+                  <span className="inline-flex items-center gap-0.5">
+                    {header.column.columnDef.header?.toString()}
+                    {header.column.getIsSorted() === 'asc' && <ChevronUpIcon className="size-3" />}
+                    {header.column.getIsSorted() === 'desc' && <ChevronDownIcon className="size-3" />}
+                  </span>
+                </th>
+              ))}
+            </tr>
           </thead>
           <tbody>
             {rows.map((row) => (

@@ -20,6 +20,7 @@ import { type Entry } from '../../types';
 import { useCallback, useMemo, useState, type RefObject } from 'react';
 import { useAlbumListFocusManagement } from '../lib/focusManagement';
 import { RowFocus } from '../lib/rowFocus';
+import { AlbumSearch } from './albumSearch';
 dayjs.extend(duration);
 
 interface AlbumListProps {
@@ -139,35 +140,38 @@ export const AlbumList = (props: AlbumListProps) => {
     const rows = table.getRowModel().rows as Row<Entry>[];
 
     return (
-      <div
-        ref={listRef}
-        className="album-list h-lvh flex-auto overflow-y-scroll outline-none"
-        onMouseDownCapture={onPaneMouseDownCapture}
-        tabIndex={0}
-      >
-        <table className="album-list w-full border-separate border-spacing-0 text-xs">
-          <thead>
-            <tr>
-              {headers.map((header) => (
-                <th
-                  className="bold sticky top-0 z-10 cursor-pointer border-r border-gray-400 bg-[#dfdfdf] p-0.75 px-1.5 pt-1 text-left select-none last:border-r-0"
-                  onClick={header.column.getToggleSortingHandler()}
-                >
-                  <span className="inline-flex items-center gap-0.5">
-                    {header.column.columnDef.header?.toString()}
-                    {header.column.getIsSorted() === 'asc' && <ChevronUpIcon className="size-3" />}
-                    {header.column.getIsSorted() === 'desc' && <ChevronDownIcon className="size-3" />}
-                  </span>
-                </th>
+      <div className="album-list flex h-lvh flex-auto flex-col">
+        <div
+          ref={listRef}
+          className="flex-auto overflow-y-scroll outline-none"
+          onMouseDownCapture={onPaneMouseDownCapture}
+          tabIndex={0}
+        >
+          <table className="album-list w-full border-separate border-spacing-0 text-xs">
+            <thead>
+              <tr>
+                {headers.map((header) => (
+                  <th
+                    className="bold sticky top-0 z-10 cursor-pointer border-r border-gray-400 bg-[#dfdfdf] p-0.75 px-1.5 pt-1 text-left select-none last:border-r-0"
+                    onClick={header.column.getToggleSortingHandler()}
+                  >
+                    <span className="inline-flex items-center gap-0.5">
+                      {header.column.columnDef.header?.toString()}
+                      {header.column.getIsSorted() === 'asc' && <ChevronUpIcon className="size-3" />}
+                      {header.column.getIsSorted() === 'desc' && <ChevronDownIcon className="size-3" />}
+                    </span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <AlbumRow row={row} onClick={rowClickHandler(row)} />
               ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <AlbumRow row={row} onClick={rowClickHandler(row)} />
-            ))}
-          </tbody>
-        </table>
+            </tbody>
+          </table>
+        </div>
+        <AlbumSearch table={table} />
       </div>
     );
   }

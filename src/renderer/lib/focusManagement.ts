@@ -18,39 +18,73 @@ import type { RowFocusInstance, RowFocusRow, RowFocusState } from './rowFocus';
 type AlbumListRow<TData> = TanStackRow<TData> & RowFocusRow;
 type AlbumListTable<TData> = TanStackTable<TData> & RowFocusInstance<TData>;
 
-export type Pane = 'main' | 'sidePanel';
+export type Pane =
+  | 'albumList'
+  | 'albumSearch'
+  | 'main'
+  | 'settingsDirectories'
+  | 'settingsInbox'
+  | 'settingsSave'
+  | 'sidePanel';
 
 interface FocusState {
   albumListFocusRequest: number;
   focusedPane: Pane | undefined;
 }
 
+type MainContent = 'albumList' | 'inbox' | 'settings';
+type TabDirection = 'backward' | 'forward';
+
 type FocusAction =
   | { type: 'focusCleared' }
   | { pane: Pane; type: 'paneFocused' }
-  | { albumListSelected: boolean; type: 'tabPressed' };
+  | { direction: TabDirection; mainContent: MainContent; type: 'tabPressed' };
 
-const getNextPane = (pane: Pane | undefined): Pane => {
-  if (pane === 'sidePanel') {
-    return 'main';
+const getPaneOrder = (mainContent: MainContent): Pane[] => {
+  if (mainContent === 'albumList') {
+    return ['sidePanel', 'albumList', 'albumSearch'];
   }
 
-  if (pane === 'main') {
-    return 'sidePanel';
+  if (mainContent === 'settings') {
+    return ['sidePanel', 'settingsDirectories', 'settingsInbox', 'settingsSave'];
   }
 
-  return 'main';
+  return ['sidePanel', 'main'];
+};
+
+const getNextPane = (pane: Pane | undefined, paneOrder: Pane[], direction: TabDirection): Pane => {
+  const defaultIndex = direction === 'forward' ? Math.min(1, paneOrder.length - 1) : 0;
+  const defaultPane = paneOrder[defaultIndex] ?? paneOrder[0];
+
+  if (defaultPane == null) {
+    throw new Error('Pane order must contain at least one pane.');
+  }
+
+  if (pane == null) {
+    return defaultPane;
+  }
+
+  const currentIndex = paneOrder.indexOf(pane);
+
+  if (currentIndex < 0) {
+    return defaultPane;
+  }
+
+  const offset = direction === 'forward' ? 1 : -1;
+  const nextIndex = (currentIndex + offset + paneOrder.length) % paneOrder.length;
+
+  return paneOrder[nextIndex] ?? defaultPane;
 };
 
 const getPaneFromTarget = (
   target: EventTarget | null,
-  panes: Record<Pane, HTMLDivElement | null>
+  panes: Partial<Record<Pane, HTMLElement | null>>
 ): Pane | undefined => {
   if (!(target instanceof Node)) {
     return undefined;
   }
 
-  for (const [pane, paneElement] of Object.entries(panes) as Array<[Pane, HTMLDivElement | null]>) {
+  for (const [pane, paneElement] of Object.entries(panes) as Array<[Pane, HTMLElement | null]>) {
     if (paneElement?.contains(target)) {
       return pane;
     }
@@ -66,13 +100,10 @@ const focusReducer = (state: FocusState, action: FocusAction): FocusState => {
     case 'paneFocused':
       return { ...state, focusedPane: action.pane };
     case 'tabPressed': {
-      const nextPane = getNextPane(state.focusedPane);
+      const nextPane = getNextPane(state.focusedPane, getPaneOrder(action.mainContent), action.direction);
 
       return {
-        albumListFocusRequest:
-          nextPane === 'main' && action.albumListSelected
-            ? state.albumListFocusRequest + 1
-            : state.albumListFocusRequest,
+        albumListFocusRequest: nextPane === 'albumList' ? state.albumListFocusRequest + 1 : state.albumListFocusRequest,
         focusedPane: nextPane
       };
     }
@@ -105,10 +136,12 @@ const getPageJumpSize = (container: HTMLDivElement | null) => {
 };
 
 export interface UseAppFocusManagementOptions {
-  albumListSelected: boolean;
+  mainContent: MainContent;
 }
 
 export interface AppFocusManagement {
+  albumListPaneRef: RefObject<HTMLDivElement | null>;
+  albumSearchPaneRef: RefObject<HTMLDivElement | null>;
   clearAlbumListRowFocus: boolean;
   focusAlbumListFirstRowRequest: number;
   mainPaneRef: RefObject<HTMLDivElement | null>;
@@ -118,14 +151,42 @@ export interface AppFocusManagement {
 }
 
 export function useAppFocusManagement(options: UseAppFocusManagementOptions): AppFocusManagement {
-  const { albumListSelected } = options;
+  const { mainContent } = options;
   const [focusState, dispatchFocus] = useReducer(focusReducer, { albumListFocusRequest: 0, focusedPane: undefined });
+  const albumListPaneRef = useRef<HTMLDivElement>(null);
+  const albumSearchPaneRef = useRef<HTMLDivElement>(null);
   const mainPaneRef = useRef<HTMLDivElement>(null);
   const sidePanelRef = useRef<HTMLDivElement>(null);
+
+  const getSettingsTabStops = useCallback(() => {
+    return Array.from(mainPaneRef.current?.querySelectorAll<HTMLElement>('[data-settings-tab-stop]') ?? []);
+  }, []);
+
+  const focusAlbumListPane = useCallback(() => {
+    albumListPaneRef.current?.focus({ preventScroll: true });
+  }, []);
+
+  const focusAlbumSearch = useCallback(() => {
+    albumSearchPaneRef.current?.querySelector<HTMLInputElement>('input')?.focus({ preventScroll: true });
+  }, []);
 
   const focusMainPane = useCallback(() => {
     mainPaneRef.current?.focus({ preventScroll: true });
   }, []);
+
+  const focusSettingsPane = useCallback(
+    (pane: Extract<Pane, 'settingsDirectories' | 'settingsInbox' | 'settingsSave'>) => {
+      const tabStops = getSettingsTabStops();
+      const paneIndex = {
+        settingsDirectories: 0,
+        settingsInbox: 1,
+        settingsSave: 2
+      }[pane];
+
+      tabStops[paneIndex]?.focus({ preventScroll: true });
+    },
+    [getSettingsTabStops]
+  );
 
   const focusSidePanel = useCallback(() => {
     const firstItem = sidePanelRef.current?.querySelector<HTMLElement>('[data-side-panel-item]');
@@ -138,16 +199,25 @@ export function useAppFocusManagement(options: UseAppFocusManagementOptions): Ap
     sidePanelRef.current?.focus({ preventScroll: true });
   }, []);
 
-  const onRootFocusCapture = useCallback((focusEvent: ReactFocusEvent<HTMLDivElement>) => {
-    const pane = getPaneFromTarget(focusEvent.target, {
-      main: mainPaneRef.current,
-      sidePanel: sidePanelRef.current
-    });
+  const onRootFocusCapture = useCallback(
+    (focusEvent: ReactFocusEvent<HTMLDivElement>) => {
+      const settingsTabStops = mainContent === 'settings' ? getSettingsTabStops() : [];
+      const pane = getPaneFromTarget(focusEvent.target, {
+        albumList: mainContent === 'albumList' ? albumListPaneRef.current : null,
+        albumSearch: mainContent === 'albumList' ? albumSearchPaneRef.current : null,
+        main: mainContent === 'inbox' ? mainPaneRef.current : null,
+        settingsDirectories: settingsTabStops[0] ?? null,
+        settingsInbox: settingsTabStops[1] ?? null,
+        settingsSave: settingsTabStops[2] ?? null,
+        sidePanel: sidePanelRef.current
+      });
 
-    if (pane != null) {
-      dispatchFocus({ pane, type: 'paneFocused' });
-    }
-  }, []);
+      if (pane != null) {
+        dispatchFocus({ pane, type: 'paneFocused' });
+      }
+    },
+    [getSettingsTabStops, mainContent]
+  );
 
   const onRootBlurCapture = useCallback((blurEvent: ReactFocusEvent<HTMLDivElement>) => {
     if (blurEvent.relatedTarget instanceof Node && blurEvent.currentTarget.contains(blurEvent.relatedTarget)) {
@@ -157,37 +227,68 @@ export function useAppFocusManagement(options: UseAppFocusManagementOptions): Ap
     dispatchFocus({ type: 'focusCleared' });
   }, []);
 
-  const handlePaneTab = useCallback(() => {
-    const action = { albumListSelected, type: 'tabPressed' } as const;
-    const nextFocusState = focusReducer(focusState, action);
+  const handlePaneTab = useCallback(
+    (direction: TabDirection) => {
+      const action = { direction, mainContent, type: 'tabPressed' } as const;
+      const nextFocusState = focusReducer(focusState, action);
 
-    dispatchFocus(action);
+      dispatchFocus(action);
 
-    if (nextFocusState.focusedPane === 'sidePanel') {
-      focusSidePanel();
-      return;
-    }
+      switch (nextFocusState.focusedPane) {
+        case 'albumList':
+          focusAlbumListPane();
+          return;
+        case 'albumSearch':
+          focusAlbumSearch();
+          return;
+        case 'main':
+          focusMainPane();
+          return;
+        case 'settingsDirectories':
+        case 'settingsInbox':
+        case 'settingsSave':
+          focusSettingsPane(nextFocusState.focusedPane);
+          return;
+        case 'sidePanel':
+          focusSidePanel();
+          return;
+        default:
+          return;
+      }
+    },
+    [focusAlbumListPane, focusAlbumSearch, focusMainPane, focusSettingsPane, focusSidePanel, focusState, mainContent]
+  );
 
-    if (nextFocusState.focusedPane === 'main') {
-      focusMainPane();
-    }
-  }, [albumListSelected, focusMainPane, focusSidePanel, focusState]);
+  const handleForwardPaneTab = useCallback(() => {
+    handlePaneTab('forward');
+  }, [handlePaneTab]);
+
+  const handleBackwardPaneTab = useCallback(() => {
+    handlePaneTab('backward');
+  }, [handlePaneTab]);
 
   useHotkeys(
     [
       {
         hotkey: 'Tab',
-        callback: handlePaneTab
+        callback: handleForwardPaneTab
+      },
+      {
+        hotkey: 'Shift+Tab',
+        callback: handleBackwardPaneTab
       }
     ],
     {
+      ignoreInputs: false,
       preventDefault: true,
       target: globalThis.document
     }
   );
 
   return {
-    clearAlbumListRowFocus: focusState.focusedPane === 'sidePanel',
+    albumListPaneRef,
+    albumSearchPaneRef,
+    clearAlbumListRowFocus: focusState.focusedPane != null && focusState.focusedPane !== 'albumList',
     focusAlbumListFirstRowRequest: focusState.albumListFocusRequest,
     mainPaneRef,
     onRootBlurCapture,

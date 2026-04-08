@@ -14,14 +14,17 @@ export const Bimm = () => {
 
   if (selected == null && settings.isSuccess) setSelected(settings.data?.directories?.[0]);
   const albumListSelected = (selected == null || settings.data?.directories?.includes(selected)) ?? true;
+  const mainContent = albumListSelected ? 'albumList' : selected === 'Settings' ? 'settings' : 'inbox';
   const {
+    albumListPaneRef,
+    albumSearchPaneRef,
     clearAlbumListRowFocus,
     focusAlbumListFirstRowRequest,
     mainPaneRef,
     onRootBlurCapture,
     onRootFocusCapture,
     sidePanelRef
-  } = useAppFocusManagement({ albumListSelected });
+  } = useAppFocusManagement({ mainContent });
 
   return (
     <div className="flex h-full w-full" onBlurCapture={onRootBlurCapture} onFocusCapture={onRootFocusCapture}>
@@ -35,7 +38,8 @@ export const Bimm = () => {
         <AlbumList
           clearRowFocus={clearAlbumListRowFocus}
           focusFirstRowRequest={focusAlbumListFirstRowRequest}
-          paneRef={mainPaneRef}
+          paneRef={albumListPaneRef}
+          searchPaneRef={albumSearchPaneRef}
           selected={selected}
         />
       )}

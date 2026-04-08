@@ -27,6 +27,7 @@ interface AlbumListProps {
   clearRowFocus: boolean;
   focusFirstRowRequest: number;
   paneRef: RefObject<HTMLDivElement | null>;
+  searchPaneRef: RefObject<HTMLDivElement | null>;
   selected: string | undefined;
 }
 
@@ -73,7 +74,7 @@ type Row<TData> = TanStackRow<TData> & {
 };
 
 export const AlbumList = (props: AlbumListProps) => {
-  const { clearRowFocus, focusFirstRowRequest, paneRef: listRef, selected } = props;
+  const { clearRowFocus, focusFirstRowRequest, paneRef: listRef, searchPaneRef, selected } = props;
   const trpc = useTRPC();
   const albumsQuery = useQuery(trpc.file.getAlbums.queryOptions(selected));
 
@@ -171,7 +172,7 @@ export const AlbumList = (props: AlbumListProps) => {
             </tbody>
           </table>
         </div>
-        <AlbumSearch table={table} />
+        <AlbumSearch paneRef={searchPaneRef} table={table} />
       </div>
     );
   }

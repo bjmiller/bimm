@@ -42,6 +42,7 @@ export const Settings = ({ paneRef }: SettingsProps) => {
               <>
                 <h3>Music Directories</h3>
                 <textarea
+                  data-settings-tab-stop
                   id={field.name}
                   name={field.name}
                   value={field.state.value?.join('\n')}
@@ -59,6 +60,7 @@ export const Settings = ({ paneRef }: SettingsProps) => {
               <>
                 <h3 className="mt-2">Inbox Directory</h3>
                 <input
+                  data-settings-tab-stop
                   id={field.name}
                   name={field.name}
                   value={field.state.value}
@@ -72,6 +74,7 @@ export const Settings = ({ paneRef }: SettingsProps) => {
 
         <div>
           <button
+            data-settings-tab-stop
             type="submit"
             onClick={(e) => {
               e.preventDefault();

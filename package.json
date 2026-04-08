@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "main": "./dist/index.js",
   "scripts": {
+    "build-watch": "webpack --watch",
     "build": "webpack",
     "start": "electron .",
     "typecheck": "tsc --noEmit"

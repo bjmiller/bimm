@@ -32,7 +32,6 @@ const mainConfig: webpack.Configuration = {
     new CopyWebpackPlugin({ patterns: [{ from: 'src/icons/*.png', to: 'icons/[name][ext]' }] }),
     new webpack.optimize.LimitChunkCountPlugin({ maxChunks: 1 })
   ],
-  watch: true,
   watchOptions: {
     aggregateTimeout
   }
@@ -58,7 +57,6 @@ const preloadConfig: webpack.Configuration = {
   optimization: {
     minimize: false
   },
-  watch: true,
   watchOptions: {
     aggregateTimeout
   }
@@ -111,7 +109,6 @@ const pageConfig: webpack.Configuration = {
     new HtmlInlineScriptPlugin(),
     new HtmlInlineCssPlugin.PluginForHtmlWebpackPluginV4({ leaveCSSFile: false })
   ],
-  watch: true,
   watchOptions: {
     aggregateTimeout
   }

@@ -41,6 +41,7 @@ export const Bimm = () => {
           paneRef={albumListPaneRef}
           searchPaneRef={albumSearchPaneRef}
           selected={selected}
+          key={selected}
         />
       )}
       {!albumListSelected &&

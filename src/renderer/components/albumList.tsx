@@ -1,3 +1,4 @@
+import { useCallback, useMemo, useState, type RefObject } from 'react';
 import { useTRPC } from '../lib/trpc';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -11,16 +12,17 @@ import {
   type RowSelectionState,
   type Row as TanStackRow
 } from '@tanstack/react-table';
+import { type SearchParserResult } from 'search-query-parser';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
 import { AlbumRow } from './albumRow';
 import { ChevronUpIcon } from '../../icons/chevronUp';
 import { ChevronDownIcon } from '../../icons/chevronDown';
-import { type Entry } from '../../types';
-import { useCallback, useMemo, useState, type RefObject } from 'react';
+import { type Album } from '../../types';
 import { useAlbumListFocusManagement } from '../lib/focusManagement';
 import { RowFocus } from '../lib/rowFocus';
 import { AlbumSearch } from './albumSearch';
+import { searchFilter } from '../lib/searchFilter';
 dayjs.extend(duration);
 
 interface AlbumListProps {
@@ -31,19 +33,19 @@ interface AlbumListProps {
   selected: string | undefined;
 }
 
-const columnHelper = createColumnHelper<Entry>();
+const columnHelper = createColumnHelper<Album>();
 
-const runningtimeAccessorFn = (entry: Entry) =>
-  entry.tracks?.reduce((memo, track) => memo + (track?.duration ?? 0), 0) ?? null;
+export const calculateRunningtime = (album: Album) =>
+  album.tracks?.reduce((memo, track) => memo + (track?.duration ?? 0), 0) ?? null;
 
-const numberOfTracksAccessorFn = (entry: Entry) => entry.tracks?.length ?? 0;
+const calculateNumberOfTracks = (album: Album) => album.tracks?.length ?? 0;
 
 const columns = [
   columnHelper.accessor('filename', {
     id: 'album',
     header: 'Album'
   }),
-  columnHelper.accessor(runningtimeAccessorFn, {
+  columnHelper.accessor(calculateRunningtime, {
     id: 'runningtime',
     header: 'Time',
     cell: (ctx) => {
@@ -51,7 +53,7 @@ const columns = [
       return runningtime ? dayjs.duration(runningtime, 'seconds').format('HH:mm:ss') : '';
     }
   }),
-  columnHelper.accessor(numberOfTracksAccessorFn, {
+  columnHelper.accessor(calculateNumberOfTracks, {
     id: 'numberoftracks',
     header: '#'
   }),
@@ -65,11 +67,11 @@ const columns = [
   })
 ];
 
-const getRowId = (row: Entry) => row.filename;
+const getRowId = (row: Album) => row.filename;
 
 const isMac = (globalThis.navigator?.platform ?? '').toLowerCase().includes('mac');
 type AlbumListRowFocusState = string | undefined;
-type Row<TData> = TanStackRow<TData> & {
+export type Row<TData> = TanStackRow<TData> & {
   setFocused: (value?: boolean) => void;
 };
 
@@ -78,11 +80,12 @@ export const AlbumList = (props: AlbumListProps) => {
   const trpc = useTRPC();
   const albumsQuery = useQuery(trpc.file.getAlbums.queryOptions(selected));
 
-  const data = useMemo(() => albumsQuery.data?.filter((entry) => entry.tracks?.length !== 0) ?? [], [albumsQuery.data]);
+  const data = useMemo(() => albumsQuery.data?.filter((album) => album.tracks?.length !== 0) ?? [], [albumsQuery.data]);
 
   const [sorting, setSorting] = useState<SortingState>([{ id: 'modified', desc: true }]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [rowFocus, setRowFocus] = useState<AlbumListRowFocusState>(undefined);
+  const [globalFilter, setGlobalFilter] = useState<SearchParserResult>({ offsets: [], exclude: {} });
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
@@ -90,10 +93,12 @@ export const AlbumList = (props: AlbumListProps) => {
     data,
     columns,
     getRowId,
-    state: { sorting, rowSelection, rowFocus },
+    state: { sorting, rowSelection, rowFocus, globalFilter },
     onSortingChange: setSorting,
     onRowSelectionChange: setRowSelection,
     onRowFocusChange: setRowFocus,
+    onGlobalFilterChange: setGlobalFilter,
+    globalFilterFn: searchFilter,
     sortDescFirst: true,
     enableSortingRemoval: false,
     getCoreRowModel: getCoreRowModel(),
@@ -114,7 +119,7 @@ export const AlbumList = (props: AlbumListProps) => {
   });
 
   const rowClickHandler = useCallback(
-    (row: Row<Entry>) => (clickEvent: React.MouseEvent<HTMLTableRowElement>) => {
+    (row: Row<Album>) => (clickEvent: React.MouseEvent<HTMLTableRowElement>) => {
       const additiveSelection = isMac ? clickEvent.metaKey : clickEvent.ctrlKey;
 
       row.setFocused(true);
@@ -138,7 +143,7 @@ export const AlbumList = (props: AlbumListProps) => {
   }
   if (albumsQuery.isSuccess) {
     const headers = table.getFlatHeaders();
-    const rows = table.getRowModel().rows as Row<Entry>[];
+    const rows = table.getRowModel().rows as Row<Album>[];
 
     return (
       <div className="album-list flex h-lvh flex-auto flex-col">

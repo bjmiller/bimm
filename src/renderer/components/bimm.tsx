@@ -27,7 +27,7 @@ export const Bimm = () => {
   } = useAppFocusManagement({ mainContent });
 
   return (
-    <div className="flex h-full w-full" onBlurCapture={onRootBlurCapture} onFocusCapture={onRootFocusCapture}>
+    <div className="bimm flex h-full w-full" onBlurCapture={onRootBlurCapture} onFocusCapture={onRootFocusCapture}>
       <SidePanel
         paneRef={sidePanelRef}
         settings={settings.data ?? { home: '' }}

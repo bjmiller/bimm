@@ -7,7 +7,8 @@
     "build-watch": "webpack --watch",
     "build": "webpack",
     "start": "electron .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint ."
   },
   "author": "",
   "license": "UNLICENSED",
@@ -67,6 +68,9 @@
     "music-metadata": "^11.10.2",
     "p-limit": "^7.2.0",
     "parse-duration": "^2.1.6",
+    "playwright": "^1.59.1",
+    "playwright-extra": "^4.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-error-boundary": "^6.0.0",

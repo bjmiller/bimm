@@ -64,3 +64,73 @@ export type Entry = {
     includedGenre?: string[] | undefined;
   }[];
 };
+
+const ChosicGenreLookupTrack = Track.pick({
+  title: true,
+  artist: true
+});
+
+export const ChosicGenreLookupInput = z.object({
+  filename: z.string(),
+  tracks: z.array(ChosicGenreLookupTrack).optional()
+});
+
+export type ChosicGenreLookupInput = z.infer<typeof ChosicGenreLookupInput>;
+
+const ChosicTrackResult = z.object({
+  id: z.string(),
+  name: z.string(),
+  artist: z.string(),
+  image: z.string()
+});
+
+const ChosicTrackResults = z.object({
+  items: z.array(ChosicTrackResult)
+});
+
+export const ChosicTrackSearch = z.object({
+  tracks: ChosicTrackResults
+});
+export type ChosicTrackSearch = z.infer<typeof ChosicTrackSearch>;
+
+const ChosicAlbum = z.object({
+  name: z.string(),
+  album_type: z.string(),
+  release_date: z.string(),
+  id: z.string().optional(),
+  release_date_precision: z.string(),
+  image_default: z.string(),
+  image_large: z.string()
+});
+
+const ChosicArtistSummary = z.object({
+  name: z.string(),
+  id: z.string()
+});
+
+export const ChosicTrack = z.object({
+  id: z.string(),
+  name: z.string(),
+  artists: z.array(ChosicArtistSummary),
+  preview_url: z.string(),
+  duration_ms: z.coerce.number(),
+  popularity: z.coerce.number(),
+  album: ChosicAlbum
+});
+export type ChosicTrack = z.infer<typeof ChosicTrack>;
+
+const ChosicArtistDetails = z.object({
+  id: z.string(),
+  name: z.string(),
+  popularity: z.string(),
+  followers: z.string(),
+  image: z.string(),
+  updated_date: z.string(),
+  genres: z.array(z.string()),
+  cached: z.number()
+});
+
+export const ChosicArtistSearch = z.object({
+  artists: z.array(ChosicArtistDetails)
+});
+export type ChosicArtistSearch = z.infer<typeof ChosicArtistSearch>;

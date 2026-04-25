@@ -12,6 +12,10 @@ const mainConfig: webpack.Configuration = {
   mode: 'production',
   target: 'electron-main',
   entry: './src/index.ts',
+  externals: {
+    'playwright-extra': 'commonjs playwright-extra',
+    'puppeteer-extra-plugin-stealth': 'commonjs puppeteer-extra-plugin-stealth'
+  },
   module: {
     rules: [
       {

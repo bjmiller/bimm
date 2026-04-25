@@ -12,6 +12,7 @@ dayjs.extend(duration);
 import { type BrowserContext, type Page, type Response as PlaywrightResponse } from 'playwright';
 import { chromium } from 'playwright-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import { getLevenshteinDistance } from './lib/getLevenshteinDistance';
 import {
   AppSettings,
   type Track,
@@ -209,6 +210,7 @@ type ChosicFailureKind = 'blocked' | 'captcha' | 'token';
 const HTTP_STATUS_UNAUTHORIZED = 401;
 const CHOSIC_NETWORK_IDLE_TIMEOUT_MS = 5000;
 const CHOSIC_RESPONSE_TIMEOUT_MS = 15000;
+const CHOSIC_MATCH_DISTANCE_THRESHOLD = 8;
 
 const isChosicUrl = (value: string) => /https?:\/\/([^/]+\.)?chosic\.com/i.test(value);
 
@@ -257,6 +259,37 @@ const getChosicFailureMessage = (kind: ChosicFailureKind, target: string) => {
     default:
       return `Chosic request failed for ${target}.`;
   }
+};
+
+const normalizeChosicMatchText = (value?: string) => value?.trim().replace(/\s+/g, ' ').toLowerCase() ?? '';
+
+const chooseMatchingTrack = (trackSearch: ChosicTrackSearch, submittedTitle?: string, submittedArtist?: string) => {
+  const expectedTitle = normalizeChosicMatchText(submittedTitle);
+  const expectedArtist = normalizeChosicMatchText(submittedArtist);
+
+  if (expectedTitle === '' || expectedArtist === '') {
+    return undefined;
+  }
+
+  for (const track of trackSearch.tracks.items) {
+    if (
+      normalizeChosicMatchText(track.name) === expectedTitle &&
+      normalizeChosicMatchText(track.artist) === expectedArtist
+    ) {
+      return track;
+    }
+  }
+
+  for (const track of trackSearch.tracks.items) {
+    if (
+      getLevenshteinDistance(normalizeChosicMatchText(track.name), expectedTitle) < CHOSIC_MATCH_DISTANCE_THRESHOLD &&
+      getLevenshteinDistance(normalizeChosicMatchText(track.artist), expectedArtist) < CHOSIC_MATCH_DISTANCE_THRESHOLD
+    ) {
+      return track;
+    }
+  }
+
+  return undefined;
 };
 
 const readChosicPageText = async (page: Page) => {
@@ -373,9 +406,11 @@ const fetchGenresWithPage = async (page: Page, album: ChosicGenreLookupInput) =>
 
   const trackSearch = await searchChosicTracksWithPage(page, trackSearchQuery);
 
-  const matchingTrack =
-    trackSearch.tracks.items.find((track) => track.artist.toLowerCase() === trackArtist?.toLowerCase()) ??
-    trackSearch.tracks.items[0];
+  if (trackSearch.tracks.items.length === 0) {
+    return [];
+  }
+
+  const matchingTrack = chooseMatchingTrack(trackSearch, trackTitle, trackArtist);
 
   if (matchingTrack == null) {
     return [];

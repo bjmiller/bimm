@@ -170,7 +170,6 @@ export const AlbumList = (props: AlbumListProps) => {
   );
 
   const fetchFocusedAlbumGenres = useCallback(() => {
-    console.log('fetchFocusedAlbumGenres');
     if (focusedAlbum == null) {
       return;
     }

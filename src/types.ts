@@ -27,25 +27,26 @@ export const Track = z.object({
 
 export type Track = z.infer<typeof Track>;
 
-export const Album = z.object({
-  filename: z.string(),
-  fullpath: z.string(),
-  mtime: z.date().optional(),
-  title: z.string().optional(),
-  tracks: z.array(Track).optional(),
-  spotifyGenres: z.array(z.string()).optional(),
-  bandcampTags: z.array(z.string()).optional(),
-  manualTags: z.array(z.string()).optional()
-});
+export const AlbumMetadata = z
+  .object({
+    spotifyGenres: z.array(z.string()).optional(),
+    bandcampTags: z.array(z.string()).optional(),
+    manualTags: z.array(z.string()).optional()
+  })
+  .strict();
+export type AlbumMetadata = z.infer<typeof AlbumMetadata>;
+
+export const Album = z
+  .object({
+    filename: z.string(),
+    fullpath: z.string(),
+    mtime: z.date().optional(),
+    title: z.string().optional(),
+    tracks: z.array(Track).optional()
+  })
+  .extend(AlbumMetadata.shape);
 
 export type Album = z.infer<typeof Album>;
-
-export interface AlbumMetadata {
-  mtime?: Date;
-  spotifyGenres?: string[];
-  bandcampTags?: string[];
-  manualTags?: string[];
-}
 export type Entry = {
   filename: string;
   fullpath: string;
@@ -63,19 +64,7 @@ export type Entry = {
     albumTitle?: string | undefined;
     includedGenre?: string[] | undefined;
   }[];
-};
-
-const ChosicGenreLookupTrack = Track.pick({
-  title: true,
-  artist: true
-});
-
-export const ChosicGenreLookupInput = z.object({
-  filename: z.string(),
-  tracks: z.array(ChosicGenreLookupTrack).optional()
-});
-
-export type ChosicGenreLookupInput = z.infer<typeof ChosicGenreLookupInput>;
+} & AlbumMetadata;
 
 const ChosicTrackResult = z.object({
   id: z.string(),

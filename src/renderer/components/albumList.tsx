@@ -18,7 +18,7 @@ import duration from 'dayjs/plugin/duration';
 import { AlbumRow } from './albumRow';
 import { ChevronUpIcon } from '../../icons/chevronUp';
 import { ChevronDownIcon } from '../../icons/chevronDown';
-import { type Album, type ChosicGenreLookupInput } from '../../types';
+import { type Album } from '../../types';
 import { useAlbumListFocusManagement } from '../lib/focusManagement';
 import { RowFocus } from '../lib/rowFocus';
 import { AlbumSearch } from './albumSearch';
@@ -69,28 +69,7 @@ const columns = [
 ];
 
 const getRowId = (row: Album) => row.filename;
-const EMPTY_CHOSIC_LOOKUP_INPUT: ChosicGenreLookupInput = { filename: '', tracks: [] };
-
-const toChosicGenreLookupInput = (album?: Album): ChosicGenreLookupInput => {
-  if (album == null) {
-    return EMPTY_CHOSIC_LOOKUP_INPUT;
-  }
-
-  const firstTrack = album.tracks?.[0];
-
-  return {
-    filename: album.filename,
-    tracks:
-      firstTrack == null
-        ? []
-        : [
-            {
-              title: firstTrack.title,
-              artist: firstTrack.artist
-            }
-          ]
-  };
-};
+const EMPTY_CHOSIC_LOOKUP_ALBUM: Album = { filename: '', fullpath: '', tracks: [] };
 
 const isMac = (globalThis.navigator?.platform ?? '').toLowerCase().includes('mac');
 type AlbumListRowFocusState = string | undefined;
@@ -158,7 +137,7 @@ export const AlbumList = (props: AlbumListProps) => {
   );
 
   const focusedAlbum = rowFocus == null ? undefined : table.getRow(rowFocus)?.original;
-  const genreLookupInput = useMemo(() => toChosicGenreLookupInput(focusedAlbum), [focusedAlbum]);
+  const genreLookupInput = useMemo(() => focusedAlbum ?? EMPTY_CHOSIC_LOOKUP_ALBUM, [focusedAlbum]);
   const genreQuery = useQuery(
     trpc.web.getGenres.queryOptions(genreLookupInput, {
       enabled: false,

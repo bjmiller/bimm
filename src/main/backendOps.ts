@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import { type Dirent, type PathLike } from 'node:fs';
 import os from 'node:os';
-import { sep } from 'node:path';
+import { join, sep } from 'node:path';
 import log from 'electron-log/main';
 import { type IAudioMetadata, parseFile } from 'music-metadata';
 import pLimit from 'p-limit';
@@ -15,9 +15,9 @@ import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { getLevenshteinDistance } from './lib/getLevenshteinDistance';
 import {
   AppSettings,
+  AlbumMetadata,
   type Track,
   type Album,
-  type ChosicGenreLookupInput,
   ChosicTrackSearch,
   ChosicTrack,
   ChosicArtistSearch
@@ -34,6 +34,7 @@ const CHOSIC_GENRE_FINDER_URL = 'https://www.chosic.com/music-genre-finder/';
 const CHOSIC_SEARCH_QUERY = 'https://www.chosic.com/api/tools/search';
 const CHOSIC_TRACKS_URL = 'https://www.chosic.com/api/tools/tracks';
 const CHOSIC_ARTISTS_URL = 'https://www.chosic.com/api/tools/artists';
+const BIMM_METADATA_FILENAME = 'bimm.json';
 const SPACES = 2;
 
 const isNodeError = (item: unknown): item is NodeJS.ErrnoException => {
@@ -128,6 +129,58 @@ const isAudio = (filename: string) => {
 
 const fullPathOf = (dirent: Dirent) => `${dirent.parentPath}${sep}${dirent.name}`;
 
+const getAlbumMetadataPath = (albumPath: string) => join(albumPath, BIMM_METADATA_FILENAME);
+
+const parseAlbumMetadata = (contents: string, metadataPath: string) => {
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(contents);
+  } catch (parseError) {
+    log.error(`Unable to parse ${metadataPath}: ${messageFrom(parseError)}`);
+    return {};
+  }
+
+  const validation = AlbumMetadata.safeParse(parsed);
+
+  if (!validation.success) {
+    log.error(`Invalid ${metadataPath}: ${validation.error.message}`);
+    return {};
+  }
+
+  return validation.data;
+};
+
+const readAlbumMetadata = async (albumPath: string) => {
+  const metadataPath = getAlbumMetadataPath(albumPath);
+
+  try {
+    const contents = await fs.readFile(metadataPath, { encoding: 'utf-8' });
+    return parseAlbumMetadata(contents, metadataPath);
+  } catch (readError) {
+    if (isNodeError(readError) && readError.code === 'ENOENT') {
+      return {};
+    }
+
+    log.error(`Unable to read ${metadataPath}: ${messageFrom(readError)}`);
+    return {};
+  }
+};
+
+const writeAlbumMetadata = async (albumPath: string, metadata: AlbumMetadata) => {
+  const metadataPath = getAlbumMetadataPath(albumPath);
+  const validation = AlbumMetadata.safeParse(metadata);
+
+  if (!validation.success) {
+    throw new Error(`Metadata didn't parse before writing to ${metadataPath}: ${validation.error.message}`);
+  }
+
+  const directoryStats = await fs.stat(albumPath);
+
+  await fs.writeFile(metadataPath, JSON.stringify(validation.data, null, SPACES));
+  await fs.utimes(albumPath, directoryStats.atime, directoryStats.mtime);
+};
+
 const readTracks = async (dir: string) => {
   // let tracks: Track[];
   let audioDirents: Dirent[];
@@ -191,9 +244,9 @@ export const readAlbumDirectories = async (root?: PathLike): Promise<Album[]> =>
       log.error(`Fail to stat ${dirent.name}: ${messageFrom(statError)}`);
     }
 
-    const tracks = await readTracks(fullpath);
+    const [tracks, metadata] = await Promise.all([readTracks(fullpath), readAlbumMetadata(fullpath)]);
 
-    return { filename: dirent.name, fullpath, mtime, tracks, title: tracks[0]?.albumTitle };
+    return { filename: dirent.name, fullpath, mtime, tracks, title: tracks[0]?.albumTitle, ...metadata };
   };
 
   const albumItems = dirents.filter((dirent) => dirent.isDirectory()).map((dirent) => limit(albumIteratee, dirent));
@@ -394,7 +447,7 @@ const withChosicPage = async <T>(work: (page: Page) => Promise<T>) => {
   }
 };
 
-const fetchGenresWithPage = async (page: Page, album: ChosicGenreLookupInput) => {
+const fetchGenresWithPage = async (page: Page, album: Album) => {
   const trackTitle = album.tracks?.[0]?.title?.trim();
   const trackArtist = album.tracks?.[0]?.artist?.trim();
 
@@ -447,9 +500,16 @@ const fetchGenresWithPage = async (page: Page, album: ChosicGenreLookupInput) =>
   return matchingArtist?.genres ?? [];
 };
 
-export const fetchChosicGenres = async (album: ChosicGenreLookupInput): Promise<string[]> => {
+export const fetchChosicGenres = async (album: Album): Promise<string[]> => {
   try {
     const genres = (await withChosicPage((page) => fetchGenresWithPage(page, album))) ?? [];
+    const metadata = await readAlbumMetadata(album.fullpath);
+
+    await writeAlbumMetadata(album.fullpath, {
+      ...metadata,
+      spotifyGenres: genres
+    });
+
     // eslint-disable-next-line no-console
     console.log('[chosic]', {
       album: album.filename,

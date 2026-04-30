@@ -1,5 +1,5 @@
 import { initTRPC } from '@trpc/server';
-import { AppSettings, ChosicGenreLookupInput } from '../types';
+import { Album, AppSettings } from '../types';
 import superjson from 'superjson';
 import { fetchChosicGenres, readAlbumDirectories, readOrCreateSettings, writeSettings } from './backendOps';
 import { z } from 'zod';
@@ -21,7 +21,7 @@ export const appRouter = t.router({
     })
   },
   web: {
-    getGenres: t.procedure.input(ChosicGenreLookupInput).query(async ({ input }) => {
+    getGenres: t.procedure.input(Album).query(async ({ input }) => {
       return await fetchChosicGenres(input);
     })
   }

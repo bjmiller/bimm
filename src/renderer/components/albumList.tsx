@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState, type RefObject } from 'react';
 import { useTRPC } from '../lib/trpc';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   type SortingState,
   createColumnHelper,
@@ -71,6 +71,12 @@ const columns = [
 const getRowId = (row: Album) => row.filename;
 const EMPTY_CHOSIC_LOOKUP_ALBUM: Album = { filename: '', fullpath: '', tracks: [] };
 
+const getChosicLookupAlbum = (album: Album): Album => ({
+  filename: album.filename,
+  fullpath: album.fullpath,
+  tracks: album.tracks?.slice(0, 1)
+});
+
 const isMac = (globalThis.navigator?.platform ?? '').toLowerCase().includes('mac');
 type AlbumListRowFocusState = string | undefined;
 
@@ -90,7 +96,6 @@ export const AlbumList = (props: AlbumListProps) => {
   const [rowFocus, setRowFocus] = useState<AlbumListRowFocusState>(undefined);
   const [globalFilter, setGlobalFilter] = useState<SearchParserResult>({ offsets: [], exclude: {} });
 
-  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     _features: [RowFocus],
     data,
@@ -137,9 +142,12 @@ export const AlbumList = (props: AlbumListProps) => {
   );
 
   const focusedAlbum = rowFocus == null ? undefined : table.getRow(rowFocus)?.original;
-  const genreLookupInput = useMemo(() => focusedAlbum ?? EMPTY_CHOSIC_LOOKUP_ALBUM, [focusedAlbum]);
+  const genreLookupInput = useMemo(
+    () => (focusedAlbum == null ? EMPTY_CHOSIC_LOOKUP_ALBUM : getChosicLookupAlbum(focusedAlbum)),
+    [focusedAlbum]
+  );
   const genreQuery = useQuery(
-    trpc.web.getGenres.queryOptions(genreLookupInput, {
+    trpc.web.obtainAlbumGenres.queryOptions(genreLookupInput, {
       enabled: false,
       refetchOnMount: false,
       refetchOnWindowFocus: false,
@@ -147,6 +155,7 @@ export const AlbumList = (props: AlbumListProps) => {
       retry: false
     })
   );
+  const populateAlbumGenresMutation = useMutation(trpc.web.getGenres.mutationOptions());
 
   const fetchFocusedAlbumGenres = useCallback(() => {
     if (focusedAlbum == null) {
@@ -156,7 +165,28 @@ export const AlbumList = (props: AlbumListProps) => {
     void genreQuery.refetch();
   }, [focusedAlbum, genreQuery]);
 
+  const fetchAlbumGenres = useCallback(() => {
+    if (populateAlbumGenresMutation.isPending) {
+      return;
+    }
+
+    const albums = table.getRowModel().rows.map((row) => getChosicLookupAlbum(row.original));
+
+    if (albums.length === 0) {
+      return;
+    }
+
+    void (async () => {
+      try {
+        await populateAlbumGenresMutation.mutateAsync(albums);
+      } finally {
+        await albumsQuery.refetch();
+      }
+    })();
+  }, [albumsQuery, populateAlbumGenresMutation, table]);
+
   useHotkey('Mod+/', fetchFocusedAlbumGenres);
+  useHotkey('Control+Alt+Meta+/', fetchAlbumGenres);
 
   if (albumsQuery.isLoading) {
     return (

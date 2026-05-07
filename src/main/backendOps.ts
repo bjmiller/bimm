@@ -175,6 +175,25 @@ const writeAlbumMetadata = async (albumPath: string, metadata: AlbumMetadata) =>
   await fs.utimes(albumPath, directoryStats.atime, directoryStats.mtime);
 };
 
+const CHOSIC_TIMEOUT_ERROR_NAME = 'TimeoutError';
+const CHOSIC_UNEXPECTED_RESPONSE_PREFIX = 'Unexpected Chosic response';
+
+const shouldPersistEmptySpotifyGenres = (error: unknown) => {
+  return (
+    error instanceof Error &&
+    (error.name === CHOSIC_TIMEOUT_ERROR_NAME || error.message.startsWith(CHOSIC_UNEXPECTED_RESPONSE_PREFIX))
+  );
+};
+
+const writeSpotifyGenres = async (albumPath: string, spotifyGenres: string[]) => {
+  const metadata = await readAlbumMetadata(albumPath);
+
+  await writeAlbumMetadata(albumPath, {
+    ...metadata,
+    spotifyGenres
+  });
+};
+
 const readTracks = async (dir: string) => {
   // let tracks: Track[];
   let audioDirents: Dirent[];
@@ -484,25 +503,73 @@ const downloadChosicGenres = async (album: Album) => {
 export const fetchChosicGenres = async (album: Album): Promise<string[]> => {
   const albumLabel = album.filename;
   log.log(`[chosic] fetching genres (${albumLabel})`);
+  let genres: string[] = [];
+  let persistedEmptyGenres = false;
+
   try {
-    const genres = await downloadChosicGenres(album);
-    const metadata = await readAlbumMetadata(album.fullpath);
-
-    await writeAlbumMetadata(album.fullpath, {
-      ...metadata,
-      spotifyGenres: genres
-    });
-
-    log.log(`[chosic] fetched genres (${albumLabel})`, {
-      album: album.filename,
-      genres
-    });
-    return genres;
+    genres = await downloadChosicGenres(album);
   } catch (error) {
-    log.error(`[chosic] fetch failed (${albumLabel})`, {
+    if (!shouldPersistEmptySpotifyGenres(error)) {
+      log.error(`[chosic] fetch failed (${albumLabel})`, {
+        album: album.filename,
+        error: messageFrom(error)
+      });
+      return [];
+    }
+
+    persistedEmptyGenres = true;
+    log.warn(`[chosic] no genre data returned; writing empty genres (${albumLabel})`, {
       album: album.filename,
       error: messageFrom(error)
     });
   }
-  return [];
+
+  try {
+    await writeSpotifyGenres(album.fullpath, genres);
+  } catch (error) {
+    log.error(`[chosic] failed to persist genres (${albumLabel})`, {
+      album: album.filename,
+      error: messageFrom(error),
+      genres
+    });
+    return [];
+  }
+
+  log.log(
+    persistedEmptyGenres ? `[chosic] stored empty genres (${albumLabel})` : `[chosic] fetched genres (${albumLabel})`,
+    {
+      album: album.filename,
+      genres
+    }
+  );
+  return genres;
+};
+
+export const fetchMissingChosicGenres = async (albums: Album[]) => {
+  let skipped = 0;
+  let processed = 0;
+
+  log.log('[chosic] starting visible album batch fetch', { total: albums.length });
+
+  await albums.reduce(async (previous, album) => {
+    await previous;
+
+    const metadata = await readAlbumMetadata(album.fullpath);
+
+    if (Object.hasOwn(metadata, 'spotifyGenres')) {
+      skipped += 1;
+      return;
+    }
+
+    processed += 1;
+    await fetchChosicGenres(album);
+  }, Promise.resolve());
+
+  log.log('[chosic] completed visible album batch fetch', {
+    total: albums.length,
+    skipped,
+    processed
+  });
+
+  return { skipped, processed };
 };

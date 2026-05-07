@@ -1,7 +1,13 @@
 import { initTRPC } from '@trpc/server';
 import { Album, AppSettings } from '../types';
 import superjson from 'superjson';
-import { fetchChosicGenres, readAlbumDirectories, readOrCreateSettings, writeSettings } from './backendOps';
+import {
+  fetchChosicGenres,
+  fetchMissingChosicGenres,
+  readAlbumDirectories,
+  readOrCreateSettings,
+  writeSettings
+} from './backendOps';
 import { z } from 'zod';
 
 const t = initTRPC.create({ transformer: superjson });
@@ -21,8 +27,11 @@ export const appRouter = t.router({
     })
   },
   web: {
-    getGenres: t.procedure.input(Album).query(async ({ input }) => {
+    obtainAlbumGenres: t.procedure.input(Album).query(async ({ input }) => {
       return await fetchChosicGenres(input);
+    }),
+    getGenres: t.procedure.input(z.array(Album)).mutation(async ({ input }) => {
+      return await fetchMissingChosicGenres(input);
     })
   }
 });

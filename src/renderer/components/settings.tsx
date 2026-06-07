@@ -72,6 +72,24 @@ export const Settings = ({ paneRef }: SettingsProps) => {
           }}
         </form.Field>
 
+        <form.Field name="vlcPassword">
+          {(field) => {
+            return (
+              <>
+                <h3 className="mt-2">VLC Password</h3>
+                <input
+                  data-settings-tab-stop
+                  id={field.name}
+                  name={field.name}
+                  value={field.state.value}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  className="w-11/12 rounded-[3px] border border-neutral-700 p-1 text-sm text-[#3b3b3b]"
+                />
+              </>
+            );
+          }}
+        </form.Field>
+
         <div>
           <button
             data-settings-tab-stop

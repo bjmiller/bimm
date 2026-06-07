@@ -1,13 +1,8 @@
 import { initTRPC } from '@trpc/server';
 import { Album, AppSettings } from '../types';
 import superjson from 'superjson';
-import {
-  fetchChosicGenres,
-  fetchMissingChosicGenres,
-  readAlbumDirectories,
-  readOrCreateSettings,
-  writeSettings
-} from './backendOps';
+import { readAlbumDirectories, readOrCreateSettings, writeSettings } from './backendOps';
+import { fetchChosicGenres, fetchMissingChosicGenres } from './chosicGenreOps';
 import { z } from 'zod';
 
 const t = initTRPC.create({ transformer: superjson });

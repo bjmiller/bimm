@@ -126,6 +126,9 @@ export const ChosicArtistSearch = z.object({
 export type ChosicArtistSearch = z.infer<typeof ChosicArtistSearch>;
 
 export const VlcCommand = z.discriminatedUnion('command', [
+  // No-op / reachability probe
+  z.object({ command: z.null() }),
+
   // Commands with no additional parameters
   z.object({ command: z.literal('pl_stop') }),
   z.object({ command: z.literal('pl_next') }),
@@ -189,3 +192,12 @@ export const VlcCommand = z.discriminatedUnion('command', [
   z.object({ command: z.literal('equalizer'), band: z.number(), val: z.string() })
 ]);
 export type VlcCommand = z.infer<typeof VlcCommand>;
+
+export interface VlcLaunchCommand {
+  args: string[];
+  command: string;
+}
+
+export interface VlcWebRequestOptions {
+  timeoutMs?: number;
+}

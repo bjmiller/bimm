@@ -4,7 +4,7 @@ import superjson from 'superjson';
 import { readAlbumDirectories, readOrCreateSettings, writeSettings } from './backendOps';
 import { fetchChosicGenres, fetchMissingChosicGenres } from './chosicGenreOps';
 import { z } from 'zod';
-import { playAlbum } from './vlcControlOps';
+import { addAndPlayAlbums } from './vlcControlOps';
 
 const t = initTRPC.create({ transformer: superjson });
 export const appRouter = t.router({
@@ -31,8 +31,8 @@ export const appRouter = t.router({
     })
   },
   vlc: {
-    playAlbum: t.procedure.input(Album).mutation(async ({ input }) => {
-      return await playAlbum(input);
+    addAndPlayAlbums: t.procedure.input(z.array(Album)).mutation(async ({ input }) => {
+      return await addAndPlayAlbums(input);
     })
   }
 });

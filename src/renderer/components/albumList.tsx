@@ -10,7 +10,8 @@ import {
   getSortedRowModel,
   getExpandedRowModel,
   type RowSelectionState,
-  type Row as TanStackRow
+  type Row as TanStackRow,
+  type Updater
 } from '@tanstack/react-table';
 import { type SearchParserResult } from 'search-query-parser';
 import dayjs from 'dayjs';
@@ -92,9 +93,37 @@ export const AlbumList = (props: AlbumListProps) => {
   const data = useMemo(() => albumsQuery.data?.filter((album) => album.tracks?.length !== 0) ?? [], [albumsQuery.data]);
 
   const [sorting, setSorting] = useState<SortingState>([{ id: 'modified', desc: true }]);
-  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [selectedRows, setSelectedRows] = useState<Map<string, number>>(new Map());
   const [rowFocus, setRowFocus] = useState<AlbumListRowFocusState>(undefined);
   const [globalFilter, setGlobalFilter] = useState<SearchParserResult>({ offsets: [], exclude: {} });
+
+  const rowSelection = useMemo<RowSelectionState>(
+    () => Object.fromEntries(Array.from(selectedRows.keys()).map((id) => [id, true])),
+    [selectedRows]
+  );
+
+  const handleRowSelectionChange = useCallback((updater: Updater<RowSelectionState>) => {
+    setSelectedRows((prev) => {
+      const prevSelection = Object.fromEntries(Array.from(prev.keys()).map((id) => [id, true]));
+      const nextSelection = typeof updater === 'function' ? updater(prevSelection) : updater;
+      const now = Date.now();
+      const next = new Map(prev);
+
+      for (const [rowId, isSelected] of Object.entries(nextSelection)) {
+        if (isSelected && !prev.has(rowId)) {
+          next.set(rowId, now);
+        }
+      }
+
+      for (const rowId of prev.keys()) {
+        if (!nextSelection[rowId]) {
+          next.delete(rowId);
+        }
+      }
+
+      return next;
+    });
+  }, []);
 
   const table = useReactTable({
     _features: [RowFocus],
@@ -103,7 +132,7 @@ export const AlbumList = (props: AlbumListProps) => {
     getRowId,
     state: { sorting, rowSelection, rowFocus, globalFilter },
     onSortingChange: setSorting,
-    onRowSelectionChange: setRowSelection,
+    onRowSelectionChange: handleRowSelectionChange,
     onRowFocusChange: setRowFocus,
     onGlobalFilterChange: setGlobalFilter,
     globalFilterFn: searchFilter,
@@ -140,6 +169,49 @@ export const AlbumList = (props: AlbumListProps) => {
     },
     [table]
   );
+
+  const addAndPlayAlbumsMutation = useMutation(trpc.vlc.addAndPlayAlbums.mutationOptions());
+
+  const handleShiftEnter = useCallback(() => {
+    if (selectedRows.size === 0) {
+      const focusedRowId = table.getFocusedRowId();
+      if (focusedRowId != null) {
+        const focusedRow = table.getRow(focusedRowId);
+        if (focusedRow != null) {
+          // eslint-disable-next-line no-console
+          console.log(focusedRow.original.filename);
+          void (async () => {
+            try {
+              await addAndPlayAlbumsMutation.mutateAsync([focusedRow.original]);
+            } catch (e) {
+              // eslint-disable-next-line no-console
+              console.error(e);
+            }
+          })();
+        }
+      }
+      return;
+    }
+
+    const sortedAlbums = Array.from(selectedRows.entries())
+      .map(([id, timestamp]) => ({ id, row: table.getRow(id), timestamp }))
+      .filter((item) => item.row != null)
+      .sort((a, b) => a.timestamp - b.timestamp)
+      .map((item) => item.row.original);
+
+    // eslint-disable-next-line no-console
+    console.log(sortedAlbums);
+    void (async () => {
+      try {
+        await addAndPlayAlbumsMutation.mutateAsync(sortedAlbums);
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error(e);
+      }
+    })();
+  }, [addAndPlayAlbumsMutation, selectedRows, table]);
+
+  useHotkey('Shift+Enter', handleShiftEnter);
 
   const focusedAlbum = rowFocus == null ? undefined : table.getRow(rowFocus)?.original;
   const genreLookupInput = useMemo(

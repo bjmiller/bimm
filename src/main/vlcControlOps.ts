@@ -7,38 +7,26 @@ const VLC_READY_TIMEOUT_MS = 30000;
 const VLC_READY_POLL_INTERVAL_MS = 500;
 const VLC_WEB_REQUEST_TIMEOUT_MS = 1000;
 
-const delay = async (milliseconds: number) => {
-  await new Promise((resolve) => setTimeout(resolve, milliseconds));
-};
-
-const isVlcWebServerReachable = async () => {
-  try {
-    await sendToVlcWeb({ command: null }, { timeoutMs: VLC_WEB_REQUEST_TIMEOUT_MS });
-    return true;
-  } catch {
-    return false;
+export const addAndPlayAlbums = async (albums: Album[]) => {
+  await ensureVlcRunning();
+  await clearPlaylist();
+  for (const album of albums) {
+    // eslint-disable-next-line no-await-in-loop
+    await enqueueAlbum(album);
   }
+  await playPlaylist();
 };
 
-const waitForVlcWebServer = async (deadline = Date.now() + VLC_READY_TIMEOUT_MS): Promise<void> => {
+export const ensureVlcRunning = async () => {
   if (await isVlcWebServerReachable()) {
     return;
   }
 
-  if (Date.now() >= deadline) {
-    throw new Error('VLC did not become reachable.');
+  if (!(await isVlcProcessRunning())) {
+    await launchVlc();
   }
 
-  await delay(VLC_READY_POLL_INTERVAL_MS);
-  await waitForVlcWebServer(deadline);
-};
-
-const execFileMatches = async (command: string, args: string[], matches: (output: string) => boolean) => {
-  return await new Promise<boolean>((resolve) => {
-    execFile(command, args, (error, stdout) => {
-      resolve(error == null && matches(stdout));
-    });
-  });
+  await waitForVlcWebServer();
 };
 
 export const isVlcProcessRunning = async () => {
@@ -50,6 +38,31 @@ export const isVlcProcessRunning = async () => {
     default:
       return await execFileMatches('pgrep', ['-x', 'vlc'], () => true);
   }
+};
+
+const execFileMatches = async (command: string, args: string[], matches: (output: string) => boolean) => {
+  return await new Promise<boolean>((resolve) => {
+    execFile(command, args, (error, stdout) => {
+      resolve(error == null && matches(stdout));
+    });
+  });
+};
+
+export const launchVlc = async () => {
+  const launchCommands = determineVlcLaunchCommands();
+  let lastError: unknown;
+
+  for (const launchCommand of launchCommands) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      await spawnDetached(launchCommand);
+      return;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw new Error('Unable to launch VLC.', { cause: lastError });
 };
 
 const determineVlcLaunchCommands = (): VlcLaunchCommand[] => {
@@ -85,33 +98,39 @@ const spawnDetached = async (launchCommand: VlcLaunchCommand) => {
   });
 };
 
-export const launchVlc = async () => {
-  const launchCommands = determineVlcLaunchCommands();
-  let lastError: unknown;
-
-  for (const launchCommand of launchCommands) {
-    try {
-      // eslint-disable-next-line no-await-in-loop
-      await spawnDetached(launchCommand);
-      return;
-    } catch (error) {
-      lastError = error;
-    }
-  }
-
-  throw new Error('Unable to launch VLC.', { cause: lastError });
-};
-
-export const ensureVlcRunning = async () => {
+const waitForVlcWebServer = async (deadline = Date.now() + VLC_READY_TIMEOUT_MS): Promise<void> => {
   if (await isVlcWebServerReachable()) {
     return;
   }
 
-  if (!(await isVlcProcessRunning())) {
-    await launchVlc();
+  if (Date.now() >= deadline) {
+    throw new Error('VLC did not become reachable.');
   }
 
-  await waitForVlcWebServer();
+  await delay(VLC_READY_POLL_INTERVAL_MS);
+  await waitForVlcWebServer(deadline);
+};
+
+const isVlcWebServerReachable = async () => {
+  try {
+    await sendToVlcWeb({ command: null }, { timeoutMs: VLC_WEB_REQUEST_TIMEOUT_MS });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const delay = async (milliseconds: number) => {
+  await new Promise((resolve) => setTimeout(resolve, milliseconds));
+};
+
+export const clearPlaylist = async () => {
+  await sendToVlcWeb({ command: 'pl_stop' });
+  return await sendToVlcWeb({ command: 'pl_empty' });
+};
+
+export const playPlaylist = async () => {
+  return await sendToVlcWeb({ command: 'pl_play' });
 };
 
 export const enqueueAlbum = async (album: Album) => {
@@ -126,13 +145,8 @@ export const enqueueAlbum = async (album: Album) => {
   }
 };
 
-export const playPlaylist = async () => {
-  return await sendToVlcWeb({ command: 'pl_play' });
-};
-
-export const clearPlaylist = async () => {
-  await sendToVlcWeb({ command: 'pl_stop' });
-  return await sendToVlcWeb({ command: 'pl_empty' });
+const enqueue = async (track: Track) => {
+  return await sendToVlcWeb({ command: 'in_enqueue', input: pathToFileURL(track.fullPath).href });
 };
 
 const sendToVlcWeb = async (vlcCommand: VlcCommand, options: VlcWebRequestOptions = {}) => {
@@ -171,18 +185,4 @@ const sendToVlcWeb = async (vlcCommand: VlcCommand, options: VlcWebRequestOption
       clearTimeout(timeout);
     }
   }
-};
-
-const enqueue = async (track: Track) => {
-  return await sendToVlcWeb({ command: 'in_enqueue', input: pathToFileURL(track.fullPath).href });
-};
-
-export const addAndPlayAlbums = async (albums: Album[]) => {
-  await ensureVlcRunning();
-  await clearPlaylist();
-  for (const album of albums) {
-    // eslint-disable-next-line no-await-in-loop
-    await enqueueAlbum(album);
-  }
-  await playPlaylist();
 };

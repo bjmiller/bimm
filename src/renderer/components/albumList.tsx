@@ -125,6 +125,7 @@ export const AlbumList = (props: AlbumListProps) => {
     });
   }, []);
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     _features: [RowFocus],
     data,

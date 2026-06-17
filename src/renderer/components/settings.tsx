@@ -2,6 +2,7 @@ import { type RefObject } from 'react';
 import { useForm } from '@tanstack/react-form';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useTRPC } from '../lib/trpc';
+import { AppSettings } from '../../types';
 
 interface SettingsProps {
   paneRef: RefObject<HTMLDivElement | null>;
@@ -11,8 +12,9 @@ export const Settings = ({ paneRef }: SettingsProps) => {
   const trpc = useTRPC();
   const settings = useQuery(trpc.settings.getSettings.queryOptions());
   const saveMutation = useMutation(trpc.settings.writeSettings.mutationOptions());
+  const parsedSettings = AppSettings.safeParse(settings.data);
   const form = useForm({
-    defaultValues: settings.data,
+    defaultValues: parsedSettings.success ? parsedSettings.data : { home: '' },
 
     onSubmit: async ({ value }) => {
       if (value != null) {

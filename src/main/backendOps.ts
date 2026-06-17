@@ -9,7 +9,7 @@ import { app } from 'electron';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
 dayjs.extend(duration);
-import { AppSettings, AlbumMetadata, type Track, type Album } from '../types';
+import { AppSettings, AlbumMetadata, type Track, type Album, type InboxEntry } from '../types';
 
 log.transports.file.level = false;
 
@@ -100,6 +100,13 @@ const isAudio = (filename: string) => {
     if (filename.endsWith(ext)) return true;
   }
   return false;
+};
+
+export const COMPRESSED_FILE_EXTENSIONS = ['.zip', '.rar', '.tar'];
+
+const isCompressed = (filename: string) => {
+  const lower = filename.toLowerCase();
+  return COMPRESSED_FILE_EXTENSIONS.some((ext) => lower.endsWith(ext));
 };
 
 const fullPathOf = (dirent: Dirent) => `${dirent.parentPath}${sep}${dirent.name}`;
@@ -231,4 +238,91 @@ export const readAlbumDirectories = async (root?: PathLike): Promise<Album[]> =>
   const loadTime = dayjs.duration(end - start);
   log.info(`Album scan time: ${loadTime.asSeconds()}`);
   return albumValues;
+};
+
+const directoryHasAudio = async (dir: string) => {
+  try {
+    const dirents = await fs.readdir(dir, { withFileTypes: true });
+    return dirents.some((dirent) => dirent.isFile() && isAudio(dirent.name));
+  } catch (listError) {
+    log.error(`Unable to list files in ${dir}: ${messageFrom(listError)}`);
+    return false;
+  }
+};
+
+const compressedFileIteratee = async (dirent: Dirent): Promise<InboxEntry> => {
+  const fullpath = fullPathOf(dirent);
+  let mtime: Date | undefined;
+  try {
+    const stat = await fs.stat(fullpath);
+    mtime = stat.mtime;
+  } catch (statError) {
+    log.error(`Fail to stat ${dirent.name}: ${messageFrom(statError)}`);
+  }
+
+  return {
+    kind: 'compressed',
+    filename: dirent.name,
+    fullpath,
+    mtime
+  };
+};
+
+const albumInboxIteratee = async (dirent: Dirent): Promise<InboxEntry> => {
+  const fullpath = fullPathOf(dirent);
+  let mtime: Date | undefined;
+  try {
+    const stat = await fs.stat(fullpath);
+    mtime = stat.mtime;
+  } catch (statError) {
+    log.error(`Fail to stat ${dirent.name}: ${messageFrom(statError)}`);
+  }
+
+  const [tracks, metadata] = await Promise.all([readTracks(fullpath), readAlbumMetadata(fullpath)]);
+
+  return {
+    kind: 'album',
+    filename: dirent.name,
+    fullpath,
+    mtime,
+    tracks,
+    title: tracks[0]?.albumTitle,
+    ...metadata
+  };
+};
+
+export const readInboxDirectory = async (root?: PathLike): Promise<InboxEntry[]> => {
+  const start = performance.now();
+  if (root == null || root === '') return [];
+  const dirents = await fs.readdir(root, { withFileTypes: true });
+
+  const NUMBER_OF_CONCURRENT_INBOX_SCANS = 20;
+  const limit = pLimit(NUMBER_OF_CONCURRENT_INBOX_SCANS);
+
+  const directoryIteratee = async (dirent: Dirent): Promise<InboxEntry | null> => {
+    const hasAudio = await directoryHasAudio(fullPathOf(dirent));
+    if (!hasAudio) {
+      return null;
+    }
+    return limit(() => albumInboxIteratee(dirent));
+  };
+
+  const directoryItems = dirents
+    .filter((dirent) => dirent.isDirectory())
+    .map((dirent) => limit(() => directoryIteratee(dirent)));
+
+  const compressedItems = dirents
+    .filter((dirent) => dirent.isFile() && isCompressed(dirent.name))
+    .map((dirent) => limit(() => compressedFileIteratee(dirent)));
+
+  const settledItems = await Promise.allSettled([...directoryItems, ...compressedItems]);
+  const inboxValues = settledItems
+    .filter(isFulfilled)
+    .map((item) => item.value)
+    .filter((item): item is InboxEntry => item != null);
+
+  const end = performance.now();
+  const loadTime = dayjs.duration(end - start);
+  log.info(`Inbox scan time: ${loadTime.asSeconds()}`);
+  return inboxValues;
 };

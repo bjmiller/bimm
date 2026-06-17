@@ -37,17 +37,22 @@ export const AlbumMetadata = z
   .strict();
 export type AlbumMetadata = z.infer<typeof AlbumMetadata>;
 
-export const Album = z
-  .object({
-    filename: z.string(),
-    fullpath: z.string(),
-    mtime: z.date().optional(),
-    title: z.string().optional(),
-    tracks: z.array(Track).optional()
-  })
-  .extend(AlbumMetadata.shape);
+const AlbumBase = z.object({
+  filename: z.string(),
+  fullpath: z.string(),
+  mtime: z.date().optional(),
+  title: z.string().optional(),
+  tracks: z.array(Track).optional()
+});
+
+export const Album = AlbumBase.extend(AlbumMetadata.shape);
 
 export type Album = z.infer<typeof Album>;
+
+export const InboxEntry = AlbumBase.extend(AlbumMetadata.shape).extend({
+  kind: z.enum(['album', 'compressed'])
+});
+export type InboxEntry = z.infer<typeof InboxEntry>;
 export type Entry = {
   filename: string;
   fullpath: string;

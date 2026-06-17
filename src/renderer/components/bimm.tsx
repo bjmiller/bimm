@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTRPC } from '../lib/trpc';
 import { AlbumList } from './albumList';
+import { Inbox } from './inbox';
 import { SidePanel } from './sidePanel';
 import { Settings } from './settings';
 import { useQuery } from '@tanstack/react-query';
@@ -19,7 +20,10 @@ export const Bimm = () => {
     albumListPaneRef,
     albumSearchPaneRef,
     clearAlbumListRowFocus,
+    clearInboxRowFocus,
     focusAlbumListFirstRowRequest,
+    focusInboxFirstRowRequest,
+    inboxPaneRef,
     mainPaneRef,
     onRootBlurCapture,
     onRootFocusCapture,
@@ -46,7 +50,15 @@ export const Bimm = () => {
       )}
       {!albumListSelected &&
         {
-          Inbox: <div ref={mainPaneRef} className="flex-1 outline-none" tabIndex={0} />,
+          Inbox: (
+            <Inbox
+              clearRowFocus={clearInboxRowFocus}
+              focusFirstRowRequest={focusInboxFirstRowRequest}
+              inboxDirectory={settings.data?.inbox}
+              paneRef={inboxPaneRef}
+              key="Inbox"
+            />
+          ),
           Settings: <Settings paneRef={mainPaneRef} />
         }[selected ?? '']}
     </div>

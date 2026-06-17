@@ -12,7 +12,7 @@ import {
   type RefObject,
   type SetStateAction
 } from 'react';
-import { type Entry } from '../../types';
+import { type Entry, type InboxEntry } from '../../types';
 import type { RowFocusInstance, RowFocusRow, RowFocusState } from './rowFocus';
 
 type AlbumListRow<TData> = TanStackRow<TData> & RowFocusRow;
@@ -21,6 +21,7 @@ type AlbumListTable<TData> = TanStackTable<TData> & RowFocusInstance<TData>;
 export type Pane =
   | 'albumList'
   | 'albumSearch'
+  | 'inbox'
   | 'main'
   | 'settingsDirectories'
   | 'settingsInbox'
@@ -29,6 +30,7 @@ export type Pane =
 
 interface FocusState {
   albumListFocusRequest: number;
+  inboxFocusRequest: number;
   focusedPane: Pane | undefined;
 }
 
@@ -43,6 +45,10 @@ type FocusAction =
 const getPaneOrder = (mainContent: MainContent): Pane[] => {
   if (mainContent === 'albumList') {
     return ['sidePanel', 'albumList', 'albumSearch'];
+  }
+
+  if (mainContent === 'inbox') {
+    return ['sidePanel', 'inbox'];
   }
 
   if (mainContent === 'settings') {
@@ -104,6 +110,7 @@ const focusReducer = (state: FocusState, action: FocusAction): FocusState => {
 
       return {
         albumListFocusRequest: nextPane === 'albumList' ? state.albumListFocusRequest + 1 : state.albumListFocusRequest,
+        inboxFocusRequest: nextPane === 'inbox' ? state.inboxFocusRequest + 1 : state.inboxFocusRequest,
         focusedPane: nextPane
       };
     }
@@ -143,7 +150,10 @@ export interface AppFocusManagement {
   albumListPaneRef: RefObject<HTMLDivElement | null>;
   albumSearchPaneRef: RefObject<HTMLDivElement | null>;
   clearAlbumListRowFocus: boolean;
+  clearInboxRowFocus: boolean;
   focusAlbumListFirstRowRequest: number;
+  focusInboxFirstRowRequest: number;
+  inboxPaneRef: RefObject<HTMLDivElement | null>;
   mainPaneRef: RefObject<HTMLDivElement | null>;
   onRootBlurCapture: (event: ReactFocusEvent<HTMLDivElement>) => void;
   onRootFocusCapture: (event: ReactFocusEvent<HTMLDivElement>) => void;
@@ -152,9 +162,14 @@ export interface AppFocusManagement {
 
 export function useAppFocusManagement(options: UseAppFocusManagementOptions): AppFocusManagement {
   const { mainContent } = options;
-  const [focusState, dispatchFocus] = useReducer(focusReducer, { albumListFocusRequest: 0, focusedPane: undefined });
+  const [focusState, dispatchFocus] = useReducer(focusReducer, {
+    albumListFocusRequest: 0,
+    inboxFocusRequest: 0,
+    focusedPane: undefined
+  });
   const albumListPaneRef = useRef<HTMLDivElement>(null);
   const albumSearchPaneRef = useRef<HTMLDivElement>(null);
+  const inboxPaneRef = useRef<HTMLDivElement>(null);
   const mainPaneRef = useRef<HTMLDivElement>(null);
   const sidePanelRef = useRef<HTMLDivElement>(null);
 
@@ -168,6 +183,10 @@ export function useAppFocusManagement(options: UseAppFocusManagementOptions): Ap
 
   const focusAlbumSearch = useCallback(() => {
     albumSearchPaneRef.current?.querySelector<HTMLInputElement>('input')?.focus({ preventScroll: true });
+  }, []);
+
+  const focusInboxPane = useCallback(() => {
+    inboxPaneRef.current?.focus({ preventScroll: true });
   }, []);
 
   const focusMainPane = useCallback(() => {
@@ -205,6 +224,7 @@ export function useAppFocusManagement(options: UseAppFocusManagementOptions): Ap
       const pane = getPaneFromTarget(focusEvent.target, {
         albumList: mainContent === 'albumList' ? albumListPaneRef.current : null,
         albumSearch: mainContent === 'albumList' ? albumSearchPaneRef.current : null,
+        inbox: mainContent === 'inbox' ? inboxPaneRef.current : null,
         main: mainContent === 'inbox' ? mainPaneRef.current : null,
         settingsDirectories: settingsTabStops[0] ?? null,
         settingsInbox: settingsTabStops[1] ?? null,
@@ -241,6 +261,9 @@ export function useAppFocusManagement(options: UseAppFocusManagementOptions): Ap
         case 'albumSearch':
           focusAlbumSearch();
           return;
+        case 'inbox':
+          focusInboxPane();
+          return;
         case 'main':
           focusMainPane();
           return;
@@ -256,7 +279,16 @@ export function useAppFocusManagement(options: UseAppFocusManagementOptions): Ap
           return;
       }
     },
-    [focusAlbumListPane, focusAlbumSearch, focusMainPane, focusSettingsPane, focusSidePanel, focusState, mainContent]
+    [
+      focusAlbumListPane,
+      focusAlbumSearch,
+      focusInboxPane,
+      focusMainPane,
+      focusSettingsPane,
+      focusSidePanel,
+      focusState,
+      mainContent
+    ]
   );
 
   const handleForwardPaneTab = useCallback(() => {
@@ -289,7 +321,10 @@ export function useAppFocusManagement(options: UseAppFocusManagementOptions): Ap
     albumListPaneRef,
     albumSearchPaneRef,
     clearAlbumListRowFocus: focusState.focusedPane != null && focusState.focusedPane !== 'albumList',
+    clearInboxRowFocus: focusState.focusedPane != null && focusState.focusedPane !== 'inbox',
     focusAlbumListFirstRowRequest: focusState.albumListFocusRequest,
+    focusInboxFirstRowRequest: focusState.inboxFocusRequest,
+    inboxPaneRef,
     mainPaneRef,
     onRootBlurCapture,
     onRootFocusCapture,
@@ -489,6 +524,115 @@ export function useAlbumListFocusManagement(options: UseAlbumListFocusManagement
     }
 
     const rows = table.getRowModel().rows as AlbumListRow<Entry>[];
+
+    if (!rows.length) {
+      return;
+    }
+
+    rows[0]?.setFocused(true);
+    lastHandledFocusRequest.current = focusFirstRowRequest;
+  }, [enabled, focusFirstRowRequest, table]);
+
+  useEffect(() => {
+    const focusedRowId = focusTable.getFocusedRowId();
+
+    if (focusedRowId == null) {
+      return;
+    }
+
+    if (focusTable.getFocusedRow() == null) {
+      focusTable.resetRowFocus(true);
+      return;
+    }
+
+    const focusedRowElement = Array.from(
+      listRef.current?.querySelectorAll<HTMLTableRowElement>('tbody tr[data-row-id]') ?? []
+    ).find((rowElement) => rowElement.dataset.rowId === focusedRowId);
+
+    focusedRowElement?.scrollIntoView({ block: 'nearest' });
+  }, [data, focusTable, listRef, rowFocus]);
+
+  const onPaneMouseDownCapture = useCallback(() => {
+    listRef.current?.focus({ preventScroll: true });
+  }, [listRef]);
+
+  return { onPaneMouseDownCapture };
+}
+
+export interface UseInboxFocusManagementOptions {
+  clearRowFocus: boolean;
+  data: InboxEntry[];
+  enabled: boolean;
+  focusFirstRowRequest: number;
+  listRef: RefObject<HTMLDivElement | null>;
+  rowFocus: RowFocusState;
+  setRowFocus: Dispatch<SetStateAction<RowFocusState>>;
+  table: AlbumListTable<InboxEntry>;
+}
+
+export interface InboxFocusManagement {
+  onPaneMouseDownCapture: () => void;
+}
+
+export function useInboxFocusManagement(options: UseInboxFocusManagementOptions): InboxFocusManagement {
+  const { clearRowFocus, data, enabled, focusFirstRowRequest, listRef, rowFocus, setRowFocus, table } = options;
+  const focusTable = table;
+  const lastHandledFocusRequest = useRef(0);
+
+  const moveFocus = (direction: 'up' | 'down', distance: number) => {
+    const rows = table.getRowModel().rows as AlbumListRow<InboxEntry>[];
+
+    if (!rows.length) {
+      return;
+    }
+
+    const focusedRowId = focusTable.getFocusedRowId();
+    const focusedIndex = focusedRowId == null ? -1 : rows.findIndex((row) => row.id === focusedRowId);
+
+    if (direction === 'down' && distance === 1 && focusedIndex < 0) {
+      rows[0]?.setFocused(true);
+      return;
+    }
+
+    const nextIndex =
+      direction === 'down'
+        ? focusedIndex < 0
+          ? Math.min(distance - 1, rows.length - 1)
+          : Math.min(focusedIndex + distance, rows.length - 1)
+        : focusedIndex < 0
+          ? rows.length - 1
+          : Math.max(focusedIndex - distance, 0);
+
+    rows[nextIndex]?.setFocused(true);
+  };
+
+  useHotkeys(
+    [
+      { hotkey: 'ArrowDown', callback: () => moveFocus('down', 1) },
+      { hotkey: 'ArrowUp', callback: () => moveFocus('up', 1) },
+      { hotkey: 'PageDown', callback: () => moveFocus('down', getPageJumpSize(listRef.current)) },
+      { hotkey: 'PageUp', callback: () => moveFocus('up', getPageJumpSize(listRef.current)) }
+    ],
+    {
+      enabled,
+      target: listRef
+    }
+  );
+
+  useEffect(() => {
+    if (!clearRowFocus || rowFocus == null) {
+      return;
+    }
+
+    setRowFocus(undefined);
+  }, [clearRowFocus, rowFocus, setRowFocus]);
+
+  useEffect(() => {
+    if (focusFirstRowRequest === 0 || focusFirstRowRequest === lastHandledFocusRequest.current || !enabled) {
+      return;
+    }
+
+    const rows = table.getRowModel().rows as AlbumListRow<InboxEntry>[];
 
     if (!rows.length) {
       return;

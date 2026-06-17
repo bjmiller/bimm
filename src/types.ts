@@ -49,28 +49,10 @@ export const Album = AlbumBase.extend(AlbumMetadata.shape);
 
 export type Album = z.infer<typeof Album>;
 
-export const InboxEntry = AlbumBase.extend(AlbumMetadata.shape).extend({
+export const InboxEntry = Album.extend({
   kind: z.enum(['album', 'compressed'])
 });
 export type InboxEntry = z.infer<typeof InboxEntry>;
-export type Entry = {
-  filename: string;
-  fullpath: string;
-  mtime?: Date | undefined;
-  title?: string | undefined;
-  tracks?: {
-    filename: string;
-    fullPath: string;
-    title?: string | undefined;
-    duration?: number | undefined;
-    disk?: number | null | undefined;
-    track?: number | null | undefined;
-    year?: number | undefined;
-    artist?: string | undefined;
-    albumTitle?: string | undefined;
-    includedGenre?: string[] | undefined;
-  }[];
-} & AlbumMetadata;
 
 const ChosicTrackResult = z.object({
   id: z.string(),

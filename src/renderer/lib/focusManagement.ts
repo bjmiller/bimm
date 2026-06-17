@@ -12,7 +12,7 @@ import {
   type RefObject,
   type SetStateAction
 } from 'react';
-import { type Entry, type InboxEntry } from '../../types';
+import { type Album, type InboxEntry } from '../../types';
 import type { RowFocusInstance, RowFocusRow, RowFocusState } from './rowFocus';
 
 type AlbumListRow<TData> = TanStackRow<TData> & RowFocusRow;
@@ -429,13 +429,13 @@ export function useSidePanelItemInteractions(options: UseSidePanelItemInteractio
 
 export interface UseAlbumListFocusManagementOptions {
   clearRowFocus: boolean;
-  data: Entry[];
+  data: Album[];
   enabled: boolean;
   focusFirstRowRequest: number;
   listRef: RefObject<HTMLDivElement | null>;
   rowFocus: RowFocusState;
   setRowFocus: Dispatch<SetStateAction<RowFocusState>>;
-  table: AlbumListTable<Entry>;
+  table: AlbumListTable<Album>;
 }
 
 export interface AlbumListFocusManagement {
@@ -448,7 +448,7 @@ export function useAlbumListFocusManagement(options: UseAlbumListFocusManagement
   const lastHandledFocusRequest = useRef(0);
 
   const moveFocus = (direction: 'up' | 'down', distance: number) => {
-    const rows = table.getRowModel().rows as AlbumListRow<Entry>[];
+    const rows = table.getRowModel().rows as AlbumListRow<Album>[];
 
     if (!rows.length) {
       return;
@@ -523,7 +523,7 @@ export function useAlbumListFocusManagement(options: UseAlbumListFocusManagement
       return;
     }
 
-    const rows = table.getRowModel().rows as AlbumListRow<Entry>[];
+    const rows = table.getRowModel().rows as AlbumListRow<Album>[];
 
     if (!rows.length) {
       return;

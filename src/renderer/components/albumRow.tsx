@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
-import { type Entry } from '../../types';
+import { type Album } from '../../types';
 import { flexRender, type Row as TanStackRow } from '@tanstack/react-table';
 import type { MouseEventHandler } from 'react';
 import clsx from 'clsx';
@@ -10,7 +10,7 @@ dayjs.extend(duration);
 
 type Row<TData> = TanStackRow<TData> & RowFocusRow;
 
-export interface AlbumRowProps<TData = Entry> {
+export interface AlbumRowProps<TData = Album> {
   row: Row<TData>;
   onClick?: MouseEventHandler<HTMLTableRowElement>;
 }
@@ -21,7 +21,7 @@ const flexById = <TData,>(row: Row<TData>, id: string) => {
   return flexRender(cell.column.columnDef.cell, cell.getContext()) ?? null;
 };
 
-export const AlbumRow = <TData = Entry,>(props: AlbumRowProps<TData>) => {
+export const AlbumRow = <TData = Album,>(props: AlbumRowProps<TData>) => {
   const row = props.row;
   const selected = row.getIsSelected() ? 'bg-blue-200' : 'even:bg-[#f4f5f5]';
   return (

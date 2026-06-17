@@ -44,18 +44,16 @@ export const AlbumSearch = ({ table, paneRef }: AlbumSearchProps) => {
     },
     [table]
   );
-  const escapeHandler = useCallback(
-    (e: KeyboardEvent) => {
-      const input = e.currentTarget as HTMLInputElement;
-      input.value = '';
-      setTypedQuery('');
-      table.setGlobalFilter(parseQuery(''));
-    },
-    [table]
-  );
+  const escapeHandler = useCallback(() => {
+    if (searchRef.current) {
+      searchRef.current.value = '';
+    }
+    setTypedQuery('');
+    table.setGlobalFilter(parseQuery(''));
+  }, [table]);
 
   useHotkey('Enter', enterHandler, { ignoreInputs: false, target: searchRef });
-  useHotkey('Escape', escapeHandler, { ignoreInputs: false, target: searchRef });
+  useHotkey('Escape', escapeHandler, { ignoreInputs: false });
 
   const parsedGlobalFilter = searchParserResultValidator.safeParse(table.getState().globalFilter);
   const globalFilter = parsedGlobalFilter.success ? parsedGlobalFilter.data : {};

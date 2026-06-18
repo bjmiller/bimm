@@ -23,7 +23,7 @@ export const SidePanel = ({ paneRef, settings, selected, setSelected }: SidePane
           key={directory}
           itemName={directory}
           displayName={directory.replace(settings.home, '~')}
-          icon={<FolderIcon className="h-4" />}
+          icon={<FolderIcon className="h-4 w-6" />}
           selected={selected}
           setSelected={setSelected}
         />

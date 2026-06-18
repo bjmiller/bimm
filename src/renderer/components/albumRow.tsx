@@ -6,6 +6,7 @@ import type { MouseEventHandler } from 'react';
 import clsx from 'clsx';
 import { Cell } from './cell';
 import type { RowFocusRow } from '../lib/rowFocus';
+import { FolderIcon } from '../../icons/folder';
 dayjs.extend(duration);
 
 type Row<TData> = TanStackRow<TData> & RowFocusRow;
@@ -13,6 +14,7 @@ type Row<TData> = TanStackRow<TData> & RowFocusRow;
 export interface AlbumRowProps<TData = Album> {
   row: Row<TData>;
   onClick?: MouseEventHandler<HTMLTableRowElement>;
+  viewContext: 'inbox' | 'album-list';
 }
 
 const flexById = <TData,>(row: Row<TData>, id: string) => {
@@ -23,6 +25,7 @@ const flexById = <TData,>(row: Row<TData>, id: string) => {
 
 export const AlbumRow = <TData = Album,>(props: AlbumRowProps<TData>) => {
   const row = props.row;
+  const viewContext = props.viewContext;
   const selected = row.getIsSelected() ? 'bg-blue-200' : 'even:bg-[#f4f5f5]';
   return (
     <tr
@@ -31,7 +34,10 @@ export const AlbumRow = <TData = Album,>(props: AlbumRowProps<TData>) => {
       className={clsx('cursor-default', selected, row.getIsFocused() && 'inset-ring-1 inset-ring-orange-400')}
       onClick={props.onClick}
     >
-      <Cell flexible>{flexById(row, 'album')}</Cell>
+      <Cell flexible>
+        {viewContext === 'inbox' ? <FolderIcon className="inline h-3 align-text-top text-amber-400" /> : null}{' '}
+        <span>{flexById(row, 'album')}</span>
+      </Cell>
       <Cell>{flexById(row, 'runningtime')}</Cell>
       <Cell className="text-right">{flexById(row, 'numberoftracks')}</Cell>
       <Cell>{flexById(row, 'modified')}</Cell>

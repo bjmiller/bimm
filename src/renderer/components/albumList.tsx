@@ -300,7 +300,7 @@ export const AlbumList = (props: AlbumListProps) => {
             </thead>
             <tbody>
               {rows.map((row) => (
-                <AlbumRow row={row} onClick={rowClickHandler(row)} />
+                <AlbumRow row={row} onClick={rowClickHandler(row)} viewContext="album-list" />
               ))}
             </tbody>
           </table>

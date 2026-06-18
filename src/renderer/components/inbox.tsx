@@ -154,7 +154,7 @@ export const Inbox = (props: InboxProps) => {
                 row.original.kind === 'compressed' ? (
                   <CompressedFileRow key={row.id} row={row} onClick={rowClickHandler(row)} />
                 ) : (
-                  <AlbumRow key={row.id} row={row} onClick={rowClickHandler(row)} />
+                  <AlbumRow key={row.id} row={row} onClick={rowClickHandler(row)} viewContext="inbox" />
                 )
               )}
             </tbody>

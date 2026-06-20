@@ -42,16 +42,23 @@ const AlbumBase = z.object({
   fullpath: z.string(),
   mtime: z.date().optional(),
   title: z.string().optional(),
-  tracks: z.array(Track).optional()
+  tracks: z.array(Track)
 });
 
 export const Album = AlbumBase.extend(AlbumMetadata.shape);
 
 export type Album = z.infer<typeof Album>;
 
-export const InboxEntry = Album.extend({
-  kind: z.enum(['album', 'compressed'])
-});
+export const CompressedFile = z
+  .object({
+    filename: z.string(),
+    fullpath: z.string(),
+    mtime: z.date().optional()
+  })
+  .strict();
+export type CompressedFile = z.infer<typeof CompressedFile>;
+
+export const InboxEntry = z.union([Album, CompressedFile]);
 export type InboxEntry = z.infer<typeof InboxEntry>;
 
 const ChosicTrackResult = z.object({

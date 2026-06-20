@@ -9,7 +9,7 @@ import { app } from 'electron';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
 dayjs.extend(duration);
-import { AppSettings, AlbumMetadata, type Track, type Album, type InboxEntry } from '../types';
+import { AppSettings, AlbumMetadata, type Track, type Album, type CompressedFile, type InboxEntry } from '../types';
 
 log.transports.file.level = false;
 
@@ -250,7 +250,7 @@ const directoryHasAudio = async (dir: string) => {
   }
 };
 
-const compressedFileIteratee = async (dirent: Dirent): Promise<InboxEntry> => {
+const compressedFileIteratee = async (dirent: Dirent): Promise<CompressedFile> => {
   const fullpath = fullPathOf(dirent);
   let mtime: Date | undefined;
   try {
@@ -261,14 +261,13 @@ const compressedFileIteratee = async (dirent: Dirent): Promise<InboxEntry> => {
   }
 
   return {
-    kind: 'compressed',
     filename: dirent.name,
     fullpath,
     mtime
   };
 };
 
-const albumInboxIteratee = async (dirent: Dirent): Promise<InboxEntry> => {
+const albumInboxIteratee = async (dirent: Dirent): Promise<Album> => {
   const fullpath = fullPathOf(dirent);
   let mtime: Date | undefined;
   try {
@@ -281,7 +280,6 @@ const albumInboxIteratee = async (dirent: Dirent): Promise<InboxEntry> => {
   const [tracks, metadata] = await Promise.all([readTracks(fullpath), readAlbumMetadata(fullpath)]);
 
   return {
-    kind: 'album',
     filename: dirent.name,
     fullpath,
     mtime,

@@ -1,4 +1,4 @@
-import { type InboxEntry } from '../../types';
+import { type CompressedFile } from '../../types';
 import { flexRender, type Row as TanStackRow } from '@tanstack/react-table';
 import type { MouseEventHandler } from 'react';
 import clsx from 'clsx';
@@ -9,11 +9,11 @@ import { FileArchiveIcon } from '../../icons/fileArchive';
 type Row<TData> = TanStackRow<TData> & RowFocusRow;
 
 export interface CompressedFileRowProps {
-  row: Row<InboxEntry>;
+  row: Row<CompressedFile>;
   onClick?: MouseEventHandler<HTMLTableRowElement>;
 }
 
-const flexById = (row: Row<InboxEntry>, id: string) => {
+const flexById = (row: Row<CompressedFile>, id: string) => {
   const cell = row.getVisibleCells().find((c) => c.column.id === id);
   if (cell == null) return null;
   return flexRender(cell.column.columnDef.cell, cell.getContext()) ?? null;

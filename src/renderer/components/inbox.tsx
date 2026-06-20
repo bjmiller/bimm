@@ -14,7 +14,7 @@ import { AlbumRow } from './albumRow';
 import { CompressedFileRow } from './compressedFileRow';
 import { ChevronUpIcon } from '../../icons/chevronUp';
 import { ChevronDownIcon } from '../../icons/chevronDown';
-import { type InboxEntry } from '../../types';
+import { Album, CompressedFile, type Album as AlbumType, type InboxEntry } from '../../types';
 import { useInboxFocusManagement } from '../lib/focusManagement';
 import { RowFocus } from '../lib/rowFocus';
 import { type Row as AlbumListRow } from './albumList';
@@ -29,10 +29,13 @@ interface InboxProps {
 
 const columnHelper = createColumnHelper<InboxEntry>();
 
-const calculateRunningtime = (entry: InboxEntry) =>
-  entry.kind === 'album' ? (entry.tracks?.reduce((memo, track) => memo + (track?.duration ?? 0), 0) ?? null) : null;
+const isAlbum = (entry: InboxEntry): entry is AlbumType => Album.safeParse(entry).success;
+const isCompressedFlie = (entry: InboxEntry) => CompressedFile.safeParse(entry).success;
 
-const calculateNumberOfTracks = (entry: InboxEntry) => (entry.kind === 'album' ? (entry.tracks?.length ?? 0) : null);
+const calculateRunningtime = (entry: InboxEntry) =>
+  isAlbum(entry) ? entry.tracks.reduce((memo, track) => memo + (track.duration ?? 0), 0) : null;
+
+const calculateNumberOfTracks = (entry: InboxEntry) => (isAlbum(entry) ? entry.tracks.length : null);
 
 const columns = [
   columnHelper.accessor('filename', {
@@ -151,7 +154,7 @@ export const Inbox = (props: InboxProps) => {
             </thead>
             <tbody>
               {rows.map((row) =>
-                row.original.kind === 'compressed' ? (
+                isCompressedFlie(row.original) ? (
                   <CompressedFileRow key={row.id} row={row} onClick={rowClickHandler(row)} />
                 ) : (
                   <AlbumRow key={row.id} row={row} onClick={rowClickHandler(row)} viewContext="inbox" />

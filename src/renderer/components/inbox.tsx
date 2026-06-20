@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState, type RefObject } from 'react';
 import { useTRPC } from '../lib/trpc';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   type SortingState,
   createColumnHelper,
@@ -8,13 +8,14 @@ import {
   getCoreRowModel,
   getSortedRowModel
 } from '@tanstack/react-table';
+import { useHotkey } from '@tanstack/react-hotkeys';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
 import { AlbumRow } from './albumRow';
 import { CompressedFileRow } from './compressedFileRow';
 import { ChevronUpIcon } from '../../icons/chevronUp';
 import { ChevronDownIcon } from '../../icons/chevronDown';
-import { Album, CompressedFile, type Album as AlbumType, type InboxEntry } from '../../types';
+import { Album, CompressedFile, type InboxEntry } from '../../types';
 import { useInboxFocusManagement } from '../lib/focusManagement';
 import { RowFocus } from '../lib/rowFocus';
 import { type Row as AlbumListRow } from './albumList';
@@ -29,7 +30,7 @@ interface InboxProps {
 
 const columnHelper = createColumnHelper<InboxEntry>();
 
-const isAlbum = (entry: InboxEntry): entry is AlbumType => Album.safeParse(entry).success;
+const isAlbum = (entry: InboxEntry): entry is Album => Album.safeParse(entry).success;
 const isCompressedFlie = (entry: InboxEntry) => CompressedFile.safeParse(entry).success;
 
 const calculateRunningtime = (entry: InboxEntry) =>
@@ -112,6 +113,38 @@ export const Inbox = (props: InboxProps) => {
     },
     []
   );
+
+  const addAndPlayAlbumsMutation = useMutation(trpc.vlc.addAndPlayAlbums.mutationOptions());
+
+  const handleShiftEnter = useCallback(() => {
+    const focusedRowId = table.getFocusedRowId();
+    if (focusedRowId == null) {
+      return;
+    }
+
+    const focusedRow = table.getRow(focusedRowId);
+    if (focusedRow == null) {
+      return;
+    }
+
+    const entry = focusedRow.original;
+    if (!isAlbum(entry)) {
+      return;
+    }
+
+    // eslint-disable-next-line no-console
+    console.log(entry.filename);
+    void (async () => {
+      try {
+        await addAndPlayAlbumsMutation.mutateAsync([entry]);
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error(e);
+      }
+    })();
+  }, [addAndPlayAlbumsMutation, table]);
+
+  useHotkey('Shift+Enter', handleShiftEnter);
 
   if (inboxQuery.isLoading) {
     return (

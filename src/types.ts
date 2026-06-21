@@ -4,11 +4,47 @@ export interface IconProps {
   className?: string;
 }
 
+// --- node-unrar-js runtime validators -------------------------------------
+//
+// `createExtractorFromFile` returns an `Extractor` whose runtime shape is
+// produced by the WASM bindings. We validate the methods we rely on so that
+// upstream changes to node-unrar-js fail loudly instead of silently producing
+// malformed extractions.
+
+export const RarFileHeader = z.object({
+  name: z.string(),
+  flags: z.object({
+    directory: z.boolean()
+  })
+});
+export type RarFileHeader = z.infer<typeof RarFileHeader>;
+
+export interface RarExtractor {
+  getFileList: () => { fileHeaders: Generator<RarFileHeader> };
+  extract: (options: { files: string[] }) => { files: Generator<{ fileHeader: RarFileHeader }> };
+}
+
+// `createExtractorFromFile` returns an `Extractor` whose runtime shape is
+// produced by WASM bindings. We validate the methods we rely on so that
+// upstream changes to node-unrar-js fail loudly instead of silently producing
+// malformed extractions. A custom guard is used (rather than `z.function()`)
+// because method-bearing objects are best validated structurally.
+export const RarExtractor = z.custom<RarExtractor>(
+  (value): value is RarExtractor => {
+    if (typeof value !== 'object' || value === null) return false;
+    const obj = value as Record<string, unknown>;
+    return typeof obj.getFileList === 'function' && typeof obj.extract === 'function';
+  },
+  { message: 'Expected a node-unrar-js Extractor with getFileList and extract methods' }
+);
+
 export const AppSettings = z.object({
   home: z.string(),
   directories: z.array(z.string()).optional(),
   inbox: z.string().optional(),
-  vlcPassword: z.string().optional()
+  vlcPassword: z.string().optional(),
+  tempDirectory: z.string().optional(),
+  newAlbumTargetDirectory: z.string().optional()
 });
 
 export type AppSettings = z.infer<typeof AppSettings>;

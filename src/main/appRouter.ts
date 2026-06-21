@@ -1,10 +1,18 @@
 import { initTRPC } from '@trpc/server';
-import { Album, AppSettings } from '../types';
+import { Album, AppSettings, CompressedFile } from '../types';
 import superjson from 'superjson';
-import { readAlbumDirectories, readInboxDirectory, readOrCreateSettings, writeSettings } from './backendOps';
+import {
+  moveAlbumToTarget,
+  readAlbumDirectories,
+  readInboxDirectory,
+  readOrCreateSettings,
+  trashItem,
+  writeSettings
+} from './backendOps';
 import { fetchChosicGenres, fetchMissingChosicGenres } from './chosicGenreOps';
 import { z } from 'zod';
 import { addAndPlayAlbums } from './vlcControlOps';
+import { extractAndIngestAlbum } from './archiveOps';
 
 const t = initTRPC.create({ transformer: superjson });
 export const appRouter = t.router({
@@ -23,6 +31,17 @@ export const appRouter = t.router({
     }),
     getInbox: t.procedure.input(z.string().optional()).query(async ({ input }) => {
       return await readInboxDirectory(input);
+    }),
+    moveAlbumToTarget: t.procedure.input(Album).mutation(async ({ input }) => {
+      return await moveAlbumToTarget(input);
+    }),
+    trashItem: t.procedure.input(z.string()).mutation(async ({ input }) => {
+      return await trashItem(input);
+    })
+  },
+  archive: {
+    extractAndIngest: t.procedure.input(CompressedFile).mutation(async ({ input }) => {
+      return await extractAndIngestAlbum(input);
     })
   },
   web: {

@@ -1,15 +1,16 @@
 import fs from 'node:fs/promises';
 import { type Dirent, type PathLike } from 'node:fs';
 import os from 'node:os';
-import { join, sep } from 'node:path';
+import { basename, join, sep } from 'node:path';
 import log from 'electron-log/main';
 import { type IAudioMetadata, parseFile } from 'music-metadata';
 import pLimit from 'p-limit';
-import { app } from 'electron';
+import { app, shell } from 'electron';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
 dayjs.extend(duration);
 import { AppSettings, AlbumMetadata, type Track, type Album, type CompressedFile, type InboxEntry } from '../types';
+import { moveToTarget, resolveNewAlbumTargetDir } from './archiveOps';
 
 log.transports.file.level = false;
 
@@ -89,15 +90,16 @@ export const writeSettings = async (settings: AppSettings) => {
     );
   } catch (writeError) {
     log.error(`Unable to write settings! ${messageFrom(writeError)}`);
+    throw writeError;
   }
   return readOrCreateSettings();
 };
 
 // We're trusting that the file extension is enough to tell if a file is an audio track.
-const isAudio = (filename: string) => {
+export const isAudio = (filename: string) => {
   const extensions = ['.mp3', '.m4a', '.flac', '.ogg'];
   for (const ext of extensions) {
-    if (filename.endsWith(ext)) return true;
+    if (filename.toLowerCase().endsWith(ext)) return true;
   }
   return false;
 };
@@ -216,19 +218,8 @@ export const readAlbumDirectories = async (root?: PathLike): Promise<Album[]> =>
   const NUMBER_OF_CONCURRENT_ALBUM_SCANS = 20;
   const limit = pLimit(NUMBER_OF_CONCURRENT_ALBUM_SCANS);
 
-  const albumIteratee = async (dirent: Dirent): Promise<Album> => {
-    const fullpath = fullPathOf(dirent);
-    let mtime: Date | undefined;
-    try {
-      const stat = await fs.stat(fullpath);
-      mtime = stat.mtime;
-    } catch (statError) {
-      log.error(`Fail to stat ${dirent.name}: ${messageFrom(statError)}`);
-    }
-
-    const [tracks, metadata] = await Promise.all([readTracks(fullpath), readAlbumMetadata(fullpath)]);
-
-    return { filename: dirent.name, fullpath, mtime, tracks, title: tracks[0]?.albumTitle, ...metadata };
+  const albumIteratee = (dirent: Dirent): Promise<Album> => {
+    return readAlbumFromDir(fullPathOf(dirent), dirent.name);
   };
 
   const albumItems = dirents.filter((dirent) => dirent.isDirectory()).map((dirent) => limit(albumIteratee, dirent));
@@ -267,26 +258,29 @@ const compressedFileIteratee = async (dirent: Dirent): Promise<CompressedFile> =
   };
 };
 
-const albumInboxIteratee = async (dirent: Dirent): Promise<Album> => {
-  const fullpath = fullPathOf(dirent);
+export const readAlbumFromDir = async (dirPath: string, filename?: string): Promise<Album> => {
   let mtime: Date | undefined;
   try {
-    const stat = await fs.stat(fullpath);
+    const stat = await fs.stat(dirPath);
     mtime = stat.mtime;
   } catch (statError) {
-    log.error(`Fail to stat ${dirent.name}: ${messageFrom(statError)}`);
+    log.error(`Fail to stat ${dirPath}: ${messageFrom(statError)}`);
   }
 
-  const [tracks, metadata] = await Promise.all([readTracks(fullpath), readAlbumMetadata(fullpath)]);
+  const [tracks, metadata] = await Promise.all([readTracks(dirPath), readAlbumMetadata(dirPath)]);
 
   return {
-    filename: dirent.name,
-    fullpath,
+    filename: filename ?? dirPath.split(sep).pop() ?? '',
+    fullpath: dirPath,
     mtime,
     tracks,
     title: tracks[0]?.albumTitle,
     ...metadata
   };
+};
+
+const albumInboxIteratee = (dirent: Dirent): Promise<Album> => {
+  return readAlbumFromDir(fullPathOf(dirent), dirent.name);
 };
 
 export const readInboxDirectory = async (root?: PathLike): Promise<InboxEntry[]> => {
@@ -323,4 +317,18 @@ export const readInboxDirectory = async (root?: PathLike): Promise<InboxEntry[]>
   const loadTime = dayjs.duration(end - start);
   log.info(`Inbox scan time: ${loadTime.asSeconds()}`);
   return inboxValues;
+};
+
+export const moveAlbumToTarget = async (album: Album): Promise<Album> => {
+  const settings = await readOrCreateSettings();
+  const targetDir = resolveNewAlbumTargetDir(settings);
+
+  const finalDir = await moveToTarget(album.fullpath, targetDir);
+
+  return readAlbumFromDir(finalDir, basename(finalDir));
+};
+
+export const trashItem = async (itemPath: string): Promise<boolean> => {
+  await shell.trashItem(itemPath);
+  return true;
 };

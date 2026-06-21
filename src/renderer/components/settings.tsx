@@ -27,7 +27,7 @@ export const Settings = ({ paneRef }: SettingsProps) => {
   return (
     <div
       ref={paneRef}
-      className="w-full p-1 outline-none"
+      className="settings flex h-lvh flex-auto flex-col p-1 outline-none"
       onMouseDownCapture={() => paneRef.current?.focus({ preventScroll: true })}
       tabIndex={0}
     >
@@ -92,6 +92,49 @@ export const Settings = ({ paneRef }: SettingsProps) => {
           }}
         </form.Field>
 
+        <form.Field name="tempDirectory">
+          {(field) => {
+            return (
+              <>
+                <h3 className="mt-2">Temp Directory</h3>
+                <input
+                  data-settings-tab-stop
+                  id={field.name}
+                  name={field.name}
+                  value={field.state.value ?? ''}
+                  placeholder={window.navigator.platform === 'Win32' ? '%TEMP%' : '/tmp'}
+                  onChange={(e) => field.handleChange(e.target.value || undefined)}
+                  className="w-11/12 rounded-[3px] border border-neutral-700 p-1 text-sm text-[#3b3b3b]"
+                />
+              </>
+            );
+          }}
+        </form.Field>
+
+        <form.Field name="newAlbumTargetDirectory">
+          {(field) => {
+            return (
+              <>
+                <h3 className="mt-2">New Album Target Directory</h3>
+                <select
+                  data-settings-tab-stop
+                  id={field.name}
+                  name={field.name}
+                  value={field.state.value ?? (settings.data?.directories ?? [])[0] ?? ''}
+                  onChange={(e) => field.handleChange(e.target.value || undefined)}
+                  className="w-11/12 rounded-[3px] border border-neutral-700 p-1 text-sm text-[#3b3b3b]"
+                >
+                  {(settings.data?.directories ?? []).map((dir) => (
+                    <option key={dir} value={dir}>
+                      {dir}
+                    </option>
+                  ))}
+                </select>
+              </>
+            );
+          }}
+        </form.Field>
+
         <div>
           <button
             data-settings-tab-stop
@@ -101,7 +144,7 @@ export const Settings = ({ paneRef }: SettingsProps) => {
               e.stopPropagation();
               void form.handleSubmit();
             }}
-            className="focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-background hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 mt-2 inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm font-medium whitespace-nowrap shadow-xs transition-all outline-none focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 has-[>svg]:px-3 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
+            className="focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-background hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 mt-2 inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm font-medium whitespace-nowrap shadow-xs transition-all outline-none focus-visible:ring-[3px] active:bg-orange-400 disabled:pointer-events-none disabled:opacity-50 has-[>svg]:px-3 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
           >
             Save
           </button>

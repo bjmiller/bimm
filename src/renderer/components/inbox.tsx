@@ -31,7 +31,7 @@ interface InboxProps {
 const columnHelper = createColumnHelper<InboxEntry>();
 
 const isAlbum = (entry: InboxEntry): entry is Album => Album.safeParse(entry).success;
-const isCompressedFlie = (entry: InboxEntry) => CompressedFile.safeParse(entry).success;
+const isCompressedFile = (entry: InboxEntry) => CompressedFile.safeParse(entry).success;
 
 const calculateRunningtime = (entry: InboxEntry) =>
   isAlbum(entry) ? entry.tracks.reduce((memo, track) => memo + (track.duration ?? 0), 0) : null;
@@ -79,6 +79,7 @@ export const Inbox = (props: InboxProps) => {
 
   const [sorting, setSorting] = useState<SortingState>([{ id: 'modified', desc: true }]);
   const [rowFocus, setRowFocus] = useState<InboxRowFocusState>(undefined);
+  const [extractingPath, setExtractingPath] = useState<string | null>(null);
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
@@ -106,15 +107,46 @@ export const Inbox = (props: InboxProps) => {
     table
   });
 
+  const addAndPlayAlbumsMutation = useMutation(trpc.vlc.addAndPlayAlbums.mutationOptions());
+  const extractAndIngestMutation = useMutation(trpc.archive.extractAndIngest.mutationOptions());
+  const moveAlbumToTargetMutation = useMutation(trpc.file.moveAlbumToTarget.mutationOptions());
+  const trashItemMutation = useMutation(trpc.file.trashItem.mutationOptions());
+
+  const extractAndPlay = useCallback(
+    async (entry: CompressedFile) => {
+      if (extractingPath != null) {
+        return;
+      }
+
+      setExtractingPath(entry.fullpath);
+      try {
+        const album = await extractAndIngestMutation.mutateAsync(entry);
+        await inboxQuery.refetch();
+        if (album != null) {
+          await addAndPlayAlbumsMutation.mutateAsync([album]);
+        }
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error(e);
+      } finally {
+        setExtractingPath(null);
+      }
+    },
+    [addAndPlayAlbumsMutation, extractAndIngestMutation, extractingPath, inboxQuery]
+  );
+
   const rowClickHandler = useCallback(
     (row: AlbumListRow<InboxEntry>) => (clickEvent: React.MouseEvent<HTMLTableRowElement>) => {
       clickEvent.stopPropagation();
+      const entry = row.original;
+      if (clickEvent.shiftKey && isCompressedFile(entry)) {
+        void extractAndPlay(entry);
+        return;
+      }
       row.setFocused(true);
     },
-    []
+    [extractAndPlay]
   );
-
-  const addAndPlayAlbumsMutation = useMutation(trpc.vlc.addAndPlayAlbums.mutationOptions());
 
   const handleShiftEnter = useCallback(() => {
     const focusedRowId = table.getFocusedRowId();
@@ -128,6 +160,11 @@ export const Inbox = (props: InboxProps) => {
     }
 
     const entry = focusedRow.original;
+    if (isCompressedFile(entry)) {
+      void extractAndPlay(entry);
+      return;
+    }
+
     if (!isAlbum(entry)) {
       return;
     }
@@ -142,9 +179,65 @@ export const Inbox = (props: InboxProps) => {
         console.error(e);
       }
     })();
-  }, [addAndPlayAlbumsMutation, table]);
+  }, [addAndPlayAlbumsMutation, extractAndPlay, table]);
 
   useHotkey('Shift+Enter', handleShiftEnter);
+
+  const handleF6 = useCallback(() => {
+    const focusedRowId = table.getFocusedRowId();
+    if (focusedRowId == null) {
+      return;
+    }
+
+    const focusedRow = table.getRow(focusedRowId);
+    if (focusedRow == null) {
+      return;
+    }
+
+    const entry = focusedRow.original;
+    if (!isAlbum(entry)) {
+      // Compressed files (or any non-album entry) are a no-op for F6.
+      return;
+    }
+
+    void (async () => {
+      try {
+        await moveAlbumToTargetMutation.mutateAsync(entry);
+        await inboxQuery.refetch();
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error(e);
+      }
+    })();
+  }, [inboxQuery, moveAlbumToTargetMutation, table]);
+
+  useHotkey('F6', handleF6);
+
+  const handleModDelete = useCallback(() => {
+    const focusedRowId = table.getFocusedRowId();
+    if (focusedRowId == null) {
+      return;
+    }
+
+    const focusedRow = table.getRow(focusedRowId);
+    if (focusedRow == null) {
+      return;
+    }
+
+    const entry = focusedRow.original;
+
+    void (async () => {
+      try {
+        await trashItemMutation.mutateAsync(entry.fullpath);
+        await inboxQuery.refetch();
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error(e);
+      }
+    })();
+  }, [inboxQuery, table, trashItemMutation]);
+
+  useHotkey('Mod+Delete', handleModDelete);
 
   if (inboxQuery.isLoading) {
     return (
@@ -187,8 +280,13 @@ export const Inbox = (props: InboxProps) => {
             </thead>
             <tbody>
               {rows.map((row) =>
-                isCompressedFlie(row.original) ? (
-                  <CompressedFileRow key={row.id} row={row} onClick={rowClickHandler(row)} />
+                isCompressedFile(row.original) ? (
+                  <CompressedFileRow
+                    key={row.id}
+                    row={row}
+                    onClick={rowClickHandler(row)}
+                    disabled={extractingPath === row.original.fullpath}
+                  />
                 ) : (
                   <AlbumRow key={row.id} row={row} onClick={rowClickHandler(row)} viewContext="inbox" />
                 )

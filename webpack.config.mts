@@ -14,7 +14,8 @@ const mainConfig: webpack.Configuration = {
   entry: './src/index.ts',
   externals: {
     'playwright-extra': 'commonjs playwright-extra',
-    'puppeteer-extra-plugin-stealth': 'commonjs puppeteer-extra-plugin-stealth'
+    'puppeteer-extra-plugin-stealth': 'commonjs puppeteer-extra-plugin-stealth',
+    'node-unrar-js': 'commonjs node-unrar-js'
   },
   module: {
     rules: [

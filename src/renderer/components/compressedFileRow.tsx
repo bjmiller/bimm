@@ -11,6 +11,7 @@ type Row<TData> = TanStackRow<TData> & RowFocusRow;
 export interface CompressedFileRowProps {
   row: Row<CompressedFile>;
   onClick?: MouseEventHandler<HTMLTableRowElement>;
+  disabled?: boolean;
 }
 
 const flexById = (row: Row<CompressedFile>, id: string) => {
@@ -25,8 +26,12 @@ export const CompressedFileRow = (props: CompressedFileRowProps) => {
     <tr
       key={row.id}
       data-row-id={row.id}
-      className={clsx('cursor-default even:bg-[#f4f5f5]', row.getIsFocused() && 'inset-ring-1 inset-ring-orange-400')}
-      onClick={props.onClick}
+      className={clsx(
+        'cursor-default even:bg-[#f4f5f5]',
+        row.getIsFocused() && 'inset-ring-1 inset-ring-orange-400',
+        props.disabled && 'opacity-50'
+      )}
+      onClick={props.disabled ? undefined : props.onClick}
     >
       <Cell flexible>
         <FileArchiveIcon className="inline h-3 align-text-top text-fuchsia-500" /> <span>{flexById(row, 'album')}</span>

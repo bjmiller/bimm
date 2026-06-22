@@ -114,28 +114,31 @@ export const AlbumList = (props: AlbumListProps) => {
     [selectedRows]
   );
 
-  const handleRowSelectionChange = useCallback((updater: Updater<RowSelectionState>) => {
-    setSelectedRows((prev) => {
-      const prevSelection = Object.fromEntries(Array.from(prev.keys()).map((id) => [id, true]));
-      const nextSelection = typeof updater === 'function' ? updater(prevSelection) : updater;
-      const now = Date.now();
-      const next = new Map(prev);
+  const handleRowSelectionChange = useCallback(
+    (updater: Updater<RowSelectionState>) => {
+      setSelectedRows((prev) => {
+        const prevSelection = Object.fromEntries(Array.from(prev.keys()).map((id) => [id, true]));
+        const nextSelection = typeof updater === 'function' ? updater(prevSelection) : updater;
+        const now = Date.now();
+        const next = new Map(prev);
 
-      for (const [rowId, isSelected] of Object.entries(nextSelection)) {
-        if (isSelected && !prev.has(rowId)) {
-          next.set(rowId, now);
+        for (const [rowId, isSelected] of Object.entries(nextSelection)) {
+          if (isSelected && !prev.has(rowId)) {
+            next.set(rowId, now);
+          }
         }
-      }
 
-      for (const rowId of prev.keys()) {
-        if (!nextSelection[rowId]) {
-          next.delete(rowId);
+        for (const rowId of prev.keys()) {
+          if (!nextSelection[rowId]) {
+            next.delete(rowId);
+          }
         }
-      }
 
-      return next;
-    });
-  }, []);
+        return next;
+      });
+    },
+    [setSelectedRows]
+  );
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({

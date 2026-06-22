@@ -5,15 +5,25 @@ import { GearIcon } from '../../icons/gear';
 import { FolderIcon } from '../../icons/folder';
 import { useSidePanelFocusManagement } from '../lib/focusManagement';
 import { SidePanelItem } from './sidePanelItem';
+import { SelectedRunningTime } from './selectedRunningTime';
 
 export interface SidePanelProps {
   paneRef: RefObject<HTMLDivElement | null>;
   settings: AppSettings;
   selected: string | undefined;
   setSelected: React.Dispatch<React.SetStateAction<string | undefined>>;
+  selectedRunningTime: number;
+  selectedCount: number;
 }
 
-export const SidePanel = ({ paneRef, settings, selected, setSelected }: SidePanelProps) => {
+export const SidePanel = ({
+  paneRef,
+  settings,
+  selected,
+  setSelected,
+  selectedRunningTime,
+  selectedCount
+}: SidePanelProps) => {
   const { onPaneMouseDownCapture } = useSidePanelFocusManagement({ paneRef });
 
   return (
@@ -45,6 +55,8 @@ export const SidePanel = ({ paneRef, settings, selected, setSelected }: SidePane
         selected={selected}
         setSelected={setSelected}
       />
+
+      <SelectedRunningTime totalSeconds={selectedRunningTime} selectedCount={selectedCount} />
     </div>
   );
 };

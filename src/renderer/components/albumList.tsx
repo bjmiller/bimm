@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type RefObject } from 'react';
+import React, { type Dispatch, useCallback, useMemo, useState, type RefObject, type SetStateAction } from 'react';
 import { useTRPC } from '../lib/trpc';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import {
@@ -33,6 +33,8 @@ interface AlbumListProps {
   paneRef: RefObject<HTMLDivElement | null>;
   searchPaneRef: RefObject<HTMLDivElement | null>;
   selected: string | undefined;
+  selectedRows?: Map<string, number>;
+  onSelectedRowsChange?: Dispatch<SetStateAction<Map<string, number>>>;
 }
 
 const columnHelper = createColumnHelper<Album>();
@@ -86,14 +88,24 @@ export type Row<TData> = TanStackRow<TData> & {
 };
 
 export const AlbumList = (props: AlbumListProps) => {
-  const { clearRowFocus, focusFirstRowRequest, paneRef: listRef, searchPaneRef, selected } = props;
+  const {
+    clearRowFocus,
+    focusFirstRowRequest,
+    paneRef: listRef,
+    searchPaneRef,
+    selected,
+    selectedRows: controlledSelectedRows,
+    onSelectedRowsChange
+  } = props;
   const trpc = useTRPC();
   const albumsQuery = useQuery(trpc.file.getAlbums.queryOptions(selected));
 
   const data = useMemo(() => albumsQuery.data?.filter((album) => album.tracks?.length !== 0) ?? [], [albumsQuery.data]);
 
   const [sorting, setSorting] = useState<SortingState>([{ id: 'modified', desc: true }]);
-  const [selectedRows, setSelectedRows] = useState<Map<string, number>>(new Map());
+  const [uncontrolledSelectedRows, setUncontrolledSelectedRows] = useState<Map<string, number>>(new Map());
+  const selectedRows = controlledSelectedRows ?? uncontrolledSelectedRows;
+  const setSelectedRows = onSelectedRowsChange ?? setUncontrolledSelectedRows;
   const [rowFocus, setRowFocus] = useState<AlbumListRowFocusState>(undefined);
   const [globalFilter, setGlobalFilter] = useState<SearchParserResult>({ offsets: [], exclude: {} });
 

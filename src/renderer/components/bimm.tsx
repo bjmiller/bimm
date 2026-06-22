@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTRPC } from '../lib/trpc';
-import { AlbumList } from './albumList';
+import { AlbumList, calculateRunningtime } from './albumList';
 import { Inbox } from './inbox';
 import { SidePanel } from './sidePanel';
 import { Settings } from './settings';
@@ -12,9 +12,28 @@ export const Bimm = () => {
   const settings = useQuery(trpc.settings.getSettings.queryOptions());
 
   const [selected, setSelected] = useState(settings.data?.directories?.[0]);
+  const [selectedRows, setSelectedRows] = useState<Map<string, number>>(new Map());
 
   if (selected == null && settings.isSuccess) setSelected(settings.data?.directories?.[0]);
   const albumListSelected = (selected == null || settings.data?.directories?.includes(selected)) ?? true;
+
+  const albumsQuery = useQuery(trpc.file.getAlbums.queryOptions(selected));
+  const albumsData = useMemo(
+    () => albumsQuery.data?.filter((album) => album.tracks?.length !== 0) ?? [],
+    [albumsQuery.data]
+  );
+
+  const selectedRunningTime = useMemo(() => {
+    if (!albumsData || selectedRows.size === 0) return 0;
+    let total = 0;
+    for (const id of selectedRows.keys()) {
+      const album = albumsData.find((a) => a.filename === id);
+      if (album == null) continue;
+      const t = calculateRunningtime(album);
+      if (t != null) total += t;
+    }
+    return total;
+  }, [albumsData, selectedRows]);
   const mainContent = albumListSelected ? 'albumList' : selected === 'Settings' ? 'settings' : 'inbox';
   const {
     albumListPaneRef,
@@ -37,6 +56,8 @@ export const Bimm = () => {
         settings={settings.data ?? { home: '' }}
         selected={selected}
         setSelected={setSelected}
+        selectedRunningTime={albumListSelected ? selectedRunningTime : 0}
+        selectedCount={albumListSelected ? selectedRows.size : 0}
       />
       {albumListSelected && (
         <AlbumList
@@ -45,6 +66,8 @@ export const Bimm = () => {
           paneRef={albumListPaneRef}
           searchPaneRef={albumSearchPaneRef}
           selected={selected}
+          selectedRows={selectedRows}
+          onSelectedRowsChange={setSelectedRows}
           key={selected}
         />
       )}

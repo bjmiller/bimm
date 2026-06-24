@@ -14,6 +14,14 @@ export const Bimm = () => {
   const [selected, setSelected] = useState(settings.data?.directories?.[0]);
   const [selectedRows, setSelectedRows] = useState<Map<string, number>>(new Map());
 
+  // Reset the selection whenever the album list changes (different directory or
+  // remount), so the running-time indicator never reflects stale selections.
+  const [prevSelected, setPrevSelected] = useState(selected);
+  if (prevSelected !== selected) {
+    setPrevSelected(selected);
+    setSelectedRows(new Map());
+  }
+
   if (selected == null && settings.isSuccess) setSelected(settings.data?.directories?.[0]);
   const albumListSelected = (selected == null || settings.data?.directories?.includes(selected)) ?? true;
 

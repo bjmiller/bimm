@@ -5,6 +5,7 @@ import log from 'electron-log/main';
 import { type BrowserContext, type Page, type Response as PlaywrightResponse } from 'playwright';
 import { chromium } from 'playwright-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import PQueue from 'p-queue';
 import { getLevenshteinDistance } from './lib/getLevenshteinDistance';
 import { type Album, ChosicTrackSearch, ChosicTrack, ChosicArtistSearch } from '../types';
 import { readAlbumMetadata, writeAlbumMetadata } from './backendOps';
@@ -17,6 +18,17 @@ const CHOSIC_GENRE_FINDER_URL = 'https://www.chosic.com/music-genre-finder/';
 const CHOSIC_SEARCH_QUERY = 'https://www.chosic.com/api/tools/search';
 const CHOSIC_TRACKS_URL = 'https://www.chosic.com/api/tools/tracks';
 const CHOSIC_ARTISTS_URL = 'https://www.chosic.com/api/tools/artists';
+
+const CHOSIC_QUEUE_CONCURRENCY = 1;
+const CHOSIC_QUEUE_INTERVAL_CAP = 3;
+const CHOSIC_QUEUE_INTERVAL = 1000;
+
+const chosicQueue = new PQueue({
+  concurrency: CHOSIC_QUEUE_CONCURRENCY,
+  intervalCap: CHOSIC_QUEUE_INTERVAL_CAP,
+  interval: CHOSIC_QUEUE_INTERVAL,
+  strict: true
+});
 
 const CHOSIC_TIMEOUT_ERROR_NAME = 'TimeoutError';
 const CHOSIC_UNEXPECTED_RESPONSE_PREFIX = 'Unexpected Chosic response';
@@ -268,7 +280,11 @@ const downloadChosicGenres = async (album: Album) => {
   }
 };
 
-export const fetchChosicGenres = async (album: Album): Promise<string[]> => {
+export const fetchChosicGenres = (album: Album): Promise<string[]> => {
+  return chosicQueue.add(() => fetchChosicGenresUnqueued(album));
+};
+
+const fetchChosicGenresUnqueued = async (album: Album): Promise<string[]> => {
   const albumLabel = album.filename;
   log.log(`[chosic] fetching genres (${albumLabel})`);
   let genres: string[] = [];
@@ -319,19 +335,22 @@ export const fetchMissingChosicGenres = async (albums: Album[]) => {
 
   log.log('[chosic] starting visible album batch fetch', { total: albums.length });
 
-  await albums.reduce(async (previous, album) => {
-    await previous;
+  const tasks: Promise<void>[] = [];
 
+  for (const album of albums) {
+    // eslint-disable-next-line no-await-in-loop
     const metadata = await readAlbumMetadata(album.fullpath);
 
     if (Object.hasOwn(metadata, 'spotifyGenres')) {
       skipped += 1;
-      return;
+      continue;
     }
 
     processed += 1;
-    await fetchChosicGenres(album);
-  }, Promise.resolve());
+    tasks.push(chosicQueue.add(() => fetchChosicGenresUnqueued(album).then(() => undefined)));
+  }
+
+  await Promise.all(tasks);
 
   log.log('[chosic] completed visible album batch fetch', {
     total: albums.length,

@@ -104,6 +104,10 @@ export const isAudio = (filename: string) => {
   return false;
 };
 
+// macOS uses AppleDouble files prefixed with `._` to track metadata on non-HFS volumes.
+// These should be ignored when scanning for albums and tracks.
+export const isAppleDouble = (filename: string) => filename.startsWith('._');
+
 export const COMPRESSED_FILE_EXTENSIONS = ['.zip', '.rar', '.tar'];
 
 const isCompressed = (filename: string) => {
@@ -171,7 +175,7 @@ const readTracks = async (dir: string) => {
   // Get the names of the audio files
   try {
     const dirents = await fs.readdir(dir, { withFileTypes: true });
-    audioDirents = dirents.filter((dirent) => dirent.isFile() && isAudio(dirent.name));
+    audioDirents = dirents.filter((dirent) => dirent.isFile() && isAudio(dirent.name) && !isAppleDouble(dirent.name));
   } catch (listAudioFilesError) {
     log.error(`Unable to list audio files in ${dir}: ${messageFrom(listAudioFilesError)}`);
     return [];
@@ -222,7 +226,9 @@ export const readAlbumDirectories = async (root?: PathLike): Promise<Album[]> =>
     return readAlbumFromDir(fullPathOf(dirent), dirent.name);
   };
 
-  const albumItems = dirents.filter((dirent) => dirent.isDirectory()).map((dirent) => limit(albumIteratee, dirent));
+  const albumItems = dirents
+    .filter((dirent) => dirent.isDirectory() && !isAppleDouble(dirent.name))
+    .map((dirent) => limit(albumIteratee, dirent));
   const settledAlbumItems = await Promise.allSettled(albumItems);
   const albumValues = settledAlbumItems.filter(isFulfilled).map((item) => item.value);
   const end = performance.now();
@@ -234,7 +240,7 @@ export const readAlbumDirectories = async (root?: PathLike): Promise<Album[]> =>
 const directoryHasAudio = async (dir: string) => {
   try {
     const dirents = await fs.readdir(dir, { withFileTypes: true });
-    return dirents.some((dirent) => dirent.isFile() && isAudio(dirent.name));
+    return dirents.some((dirent) => dirent.isFile() && isAudio(dirent.name) && !isAppleDouble(dirent.name));
   } catch (listError) {
     log.error(`Unable to list files in ${dir}: ${messageFrom(listError)}`);
     return false;
@@ -300,11 +306,11 @@ export const readInboxDirectory = async (root?: PathLike): Promise<InboxEntry[]>
   };
 
   const directoryItems = dirents
-    .filter((dirent) => dirent.isDirectory())
+    .filter((dirent) => dirent.isDirectory() && !isAppleDouble(dirent.name))
     .map((dirent) => limit(() => directoryIteratee(dirent)));
 
   const compressedItems = dirents
-    .filter((dirent) => dirent.isFile() && isCompressed(dirent.name))
+    .filter((dirent) => dirent.isFile() && isCompressed(dirent.name) && !isAppleDouble(dirent.name))
     .map((dirent) => limit(() => compressedFileIteratee(dirent)));
 
   const settledItems = await Promise.allSettled([...directoryItems, ...compressedItems]);

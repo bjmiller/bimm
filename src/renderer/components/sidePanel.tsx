@@ -27,7 +27,11 @@ export const SidePanel = ({
   const { onPaneMouseDownCapture } = useSidePanelFocusManagement({ paneRef });
 
   return (
-    <div ref={paneRef} className="side-panel h-screen w-1/6 bg-[#dfdfdf]" onMouseDownCapture={onPaneMouseDownCapture}>
+    <div
+      ref={paneRef}
+      className="side-panel h-screen w-1/6 min-w-0 overflow-hidden bg-[#dfdfdf]"
+      onMouseDownCapture={onPaneMouseDownCapture}
+    >
       {(settings?.directories ?? []).map((directory) => (
         <SidePanelItem
           key={directory}

@@ -2,6 +2,7 @@ import type React from 'react';
 import clsx from 'clsx';
 import { type IconProps } from '../../types';
 import { useSidePanelItemInteractions } from '../lib/focusManagement';
+import { TruncatedPath } from './truncatedPath';
 
 export interface SidePanelItemProps {
   itemName: string;
@@ -29,7 +30,7 @@ export const SidePanelItem = ({
       <div
         data-side-panel-item
         className={clsx(
-          'side-panel-item flex cursor-pointer items-center focus:inset-ring-1 focus:inset-ring-orange-400 focus:outline-none',
+          'side-panel-item flex min-w-0 cursor-pointer items-center gap-1 px-1 focus:inset-ring-1 focus:inset-ring-orange-400 focus:outline-none',
           className,
           selected === itemName ? 'bg-[#b3b3b3]' : ''
         )}
@@ -40,7 +41,7 @@ export const SidePanelItem = ({
         tabIndex={-1}
       >
         {icon}
-        <div>{displayName ?? itemName}</div>
+        <TruncatedPath path={displayName ?? itemName} className="min-w-0 flex-1 overflow-hidden" />
       </div>
     </>
   );

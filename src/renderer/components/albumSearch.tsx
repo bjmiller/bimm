@@ -8,6 +8,7 @@ import equal from 'fast-deep-equal';
 import clsx from 'clsx';
 import { isFiltered } from '../lib/isFiltered';
 import { parseOptions } from '../lib/parseOptions';
+import { applySearchShortcuts } from '../lib/searchShortcuts';
 
 interface AlbumSearchProps {
   paneRef: RefObject<HTMLDivElement | null>;
@@ -38,8 +39,12 @@ export const AlbumSearch = ({ table, paneRef }: AlbumSearchProps) => {
   const enterHandler = useCallback(
     (e: KeyboardEvent) => {
       const input = e.currentTarget as HTMLInputElement;
-      const query = input.value;
-      const result = parseQuery(query);
+      const transformedQuery = applySearchShortcuts(input.value);
+      if (transformedQuery !== input.value) {
+        input.value = transformedQuery;
+        setTypedQuery(transformedQuery);
+      }
+      const result = parseQuery(transformedQuery);
       table.setGlobalFilter(result);
     },
     [table]

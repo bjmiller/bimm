@@ -1,1 +1,1 @@
-export const parseOptions = { keywords: ['genre', 'year'], ranges: ['time'] };
+export const parseOptions = { keywords: ['genre', 'year', 'until'], ranges: ['time'] };

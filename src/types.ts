@@ -132,9 +132,9 @@ export const ChosicTrack = z.object({
   id: z.string(),
   name: z.string(),
   artists: z.array(ChosicArtistSummary),
-  preview_url: z.string(),
-  duration_ms: z.coerce.number(),
-  popularity: z.coerce.number(),
+  preview_url: z.union([z.string(), z.null()]),
+  duration_ms: z.union([z.coerce.number(), z.undefined()]),
+  popularity: z.union([z.coerce.number(), z.undefined()]),
   album: ChosicAlbum
 });
 export type ChosicTrack = z.infer<typeof ChosicTrack>;
@@ -142,12 +142,12 @@ export type ChosicTrack = z.infer<typeof ChosicTrack>;
 const ChosicArtistDetails = z.object({
   id: z.string(),
   name: z.string(),
-  popularity: z.string(),
-  followers: z.string(),
+  popularity: z.union([z.string(), z.number()]),
+  followers: z.union([z.string(), z.number()]),
   image: z.string(),
-  updated_date: z.string(),
+  updated_date: z.string().optional(),
   genres: z.array(z.string()),
-  cached: z.number()
+  cached: z.number().optional()
 });
 
 export const ChosicArtistSearch = z.object({

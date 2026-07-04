@@ -72,6 +72,36 @@ export const searchFilter = (row: Row<Album>, columnId: string, filterValue: any
       return re.test(album.filename);
     });
   }
+  // Genre filter (comma-separated list, case-insensitive, spaces and hyphens equivalent)
+  if (shouldInclude && filter.genre != null) {
+    const parseGenreResult = searchKeywordValidator.safeParse(filter.genre);
+    if (parseGenreResult.success) {
+      const filterGenres = parseGenreResult.data
+        .flatMap((genre) => genre.split(','))
+        .map((genre) =>
+          genre
+            .trim()
+            .toLowerCase()
+            .replace(/[-\s]+/g, ' ')
+        )
+        .filter((genre) => genre !== '');
+      if (filterGenres.length > 0) {
+        const albumGenres = [
+          ...(album.spotifyGenres ?? []),
+          ...(album.bandcampTags ?? []),
+          ...(album.manualTags ?? [])
+        ].map((genre) =>
+          genre
+            .trim()
+            .toLowerCase()
+            .replace(/[-\s]+/g, ' ')
+        );
+        shouldInclude = filterGenres.some((filterGenre) =>
+          albumGenres.some((albumGenre) => albumGenre.includes(filterGenre))
+        );
+      }
+    }
+  }
   // Process exclusions
   if (shouldInclude && Object.hasOwn(filter, 'exclude') && Object.keys(filter.exclude ?? {}).length !== 0) {
     const excludeText = filter.exclude?.text;

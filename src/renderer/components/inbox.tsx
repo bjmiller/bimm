@@ -288,7 +288,12 @@ export const Inbox = (props: InboxProps) => {
                     disabled={extractingPath === row.original.fullpath}
                   />
                 ) : (
-                  <AlbumRow key={row.id} row={row} onClick={rowClickHandler(row)} viewContext="inbox" />
+                  <AlbumRow
+                    key={row.id}
+                    row={row as AlbumListRow<Album>}
+                    onClick={rowClickHandler(row)}
+                    viewContext="inbox"
+                  />
                 )
               )}
             </tbody>

@@ -2,16 +2,17 @@ import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
 import { type Album } from '../../types';
 import { flexRender, type Row as TanStackRow } from '@tanstack/react-table';
-import type { MouseEventHandler } from 'react';
+import { type MouseEventHandler } from 'react';
 import clsx from 'clsx';
 import { Cell } from './cell';
 import type { RowFocusRow } from '../lib/rowFocus';
 import { FolderIcon } from '../../icons/folder';
+import { Genre } from './genre';
 dayjs.extend(duration);
 
 type Row<TData> = TanStackRow<TData> & RowFocusRow;
 
-export interface AlbumRowProps<TData = Album> {
+export interface AlbumRowProps<TData extends Album> {
   row: Row<TData>;
   onClick?: MouseEventHandler<HTMLTableRowElement>;
   viewContext: 'inbox' | 'album-list';
@@ -23,8 +24,12 @@ const flexById = <TData,>(row: Row<TData>, id: string) => {
   return flexRender(cell.column.columnDef.cell, cell.getContext()) ?? null;
 };
 
-export const AlbumRow = <TData = Album,>(props: AlbumRowProps<TData>) => {
+export const AlbumRow = <TData extends Album>(props: AlbumRowProps<TData>) => {
   const row = props.row;
+  const album = props.row.original;
+  const genres = [
+    ...new Set([...(album.spotifyGenres ?? []), ...(album.bandcampTags ?? []), ...(album.manualTags ?? [])])
+  ];
   const viewContext = props.viewContext;
   const selected = row.getIsSelected() ? 'bg-blue-200' : 'even:bg-[#f4f5f5]';
   return (
@@ -36,7 +41,10 @@ export const AlbumRow = <TData = Album,>(props: AlbumRowProps<TData>) => {
     >
       <Cell flexible>
         {viewContext === 'inbox' ? <FolderIcon className="inline h-3 align-text-top text-amber-400" /> : null}{' '}
-        <span>{flexById(row, 'album')}</span>
+        <span className="mr-2.5">{flexById(row, 'album')}</span>
+        {genres.map((genre) => (
+          <Genre>{genre}</Genre>
+        ))}
       </Cell>
       <Cell>{flexById(row, 'runningtime')}</Cell>
       <Cell className="text-right">{flexById(row, 'numberoftracks')}</Cell>

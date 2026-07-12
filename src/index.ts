@@ -1,5 +1,5 @@
-import { app, BrowserWindow } from 'electron';
-import { sep } from 'node:path';
+import { app, BrowserWindow, nativeImage } from 'electron';
+import { join } from 'node:path';
 import log from 'electron-log/main';
 import { createIPCHandler } from 'trpc-electron/main';
 import { ensureDirectory, readOrCreateSettings } from './main/backendOps';
@@ -10,16 +10,17 @@ log.initialize();
 
 const height = 768;
 const width = 1280;
+const iconPath = join(__dirname, 'icons', 'musicalNote512.png');
 
 const createWindow = () => {
   const win = new BrowserWindow({
     webPreferences: {
-      preload: `${__dirname}${sep}preload.js`
+      preload: join(__dirname, 'preload.js')
     },
     height,
     width,
     title: 'BIMM',
-    icon: `${__dirname}${sep}icons${sep}musicalNote512.png`
+    icon: iconPath
   });
 
   win
@@ -44,8 +45,11 @@ app
     }
   })
   .then(() => {
-    const win = createWindow();
+    if (process.platform === 'darwin') {
+      app.dock?.setIcon(nativeImage.createFromPath(iconPath));
+    }
 
+    const win = createWindow();
     createIPCHandler({ router: appRouter, windows: [win] });
     return win;
   })

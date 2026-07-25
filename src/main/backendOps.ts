@@ -9,8 +9,9 @@ import { app, shell } from 'electron';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
 dayjs.extend(duration);
-import { AppSettings, AlbumMetadata, type Track, type Album, type CompressedFile, type InboxEntry } from '../types';
+import { AppSettings, AlbumMetadata, type Album, type CompressedFile, type InboxEntry, type Track } from '../types';
 import { moveToTarget, resolveNewAlbumTargetDir } from './archiveOps';
+import { messageFrom } from './lib/messageFrom';
 
 log.transports.file.level = false;
 
@@ -26,8 +27,6 @@ const isNodeError = (item: unknown): item is NodeJS.ErrnoException => {
 const isFulfilled = <T>(response: PromiseSettledResult<T>): response is PromiseFulfilledResult<T> => {
   return response.status === 'fulfilled';
 };
-
-const messageFrom = (err: unknown) => (isNodeError(err) ? `${err.message}\n${err.stack}` : String(err));
 
 export const ensureDirectory = async () => {
   try {

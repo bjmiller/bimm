@@ -9,6 +9,7 @@ import PQueue from 'p-queue';
 import { getLevenshteinDistance } from './lib/getLevenshteinDistance';
 import { type Album, ChosicTrackSearch, ChosicTrack, ChosicArtistSearch } from '../types';
 import { readAlbumMetadata, writeAlbumMetadata } from './backendOps';
+import { messageFrom } from './lib/messageFrom';
 
 chromium.use(StealthPlugin());
 
@@ -197,8 +198,6 @@ const waitForChosicJson = async <T>(
     log.info(`[chosic] ${resolvedUrl} took ${formatElapsedSeconds(start)}s (${albumLabel})`);
   }
 };
-
-const messageFrom = (err: unknown) => (err instanceof Error ? `${err.message}\n${err.stack}` : String(err));
 
 const downloadChosicGenres = async (album: Album) => {
   const start = performance.now();

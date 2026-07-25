@@ -155,6 +155,146 @@ export const ChosicArtistSearch = z.object({
 });
 export type ChosicArtistSearch = z.infer<typeof ChosicArtistSearch>;
 
+export const BandcampSearchResult = z.object({
+  type: z.union([z.literal('a'), z.literal('b'), z.literal('t')]),
+  id: z.number(),
+  art_id: z.number(),
+  img_id: z.null(),
+  name: z.string(),
+  band_id: z.number(),
+  band_name: z.string(),
+  item_url_root: z.string(),
+  item_url_path: z.string(),
+  img: z.string(),
+  tag_names: z.null().optional(),
+  stat_params: z.string(),
+  album_name: z.string().optional(),
+  album_id: z.number().optional()
+});
+export type BandcampSearchResult = z.infer<typeof BandcampSearchResult>;
+
+export const BandcampSearchGenre = z.object({});
+export type BandcampSearchGenre = z.infer<typeof BandcampSearchGenre>;
+
+export const BandcampSearchTag = z.object({
+  matches: z.array(z.any()),
+  count: z.number(),
+  time_ms: z.number()
+});
+export type BandcampSearchTag = z.infer<typeof BandcampSearchTag>;
+
+export const BandcampSearchAuto = z.object({
+  results: z.array(BandcampSearchResult),
+  stat_params_for_tag: z.string(),
+  time_ms: z.number()
+});
+export type BandcampSearchAuto = z.infer<typeof BandcampSearchAuto>;
+
+export const BandcampSearch = z.object({
+  auto: BandcampSearchAuto,
+  tag: BandcampSearchTag,
+  genre: BandcampSearchGenre
+});
+export type BandcampSearch = z.infer<typeof BandcampSearch>;
+
+export const BandcampAlbumBand = z.object({
+  band_id: z.number(),
+  name: z.string(),
+  image_id: z.number(),
+  bio: z.string(),
+  location: z.string()
+});
+export type BandcampAlbumBand = z.infer<typeof BandcampAlbumBand>;
+
+export const BandcampAlbumPackageDetailsLite = z.object({
+  title: z.string(),
+  image_ids: z.array(z.number())
+});
+export type BandcampAlbumPackageDetailsLite = z.infer<typeof BandcampAlbumPackageDetailsLite>;
+
+export const BandcampAlbumGeoname = z.object({
+  id: z.number(),
+  name: z.string(),
+  fullname: z.string()
+});
+export type BandcampAlbumGeoname = z.infer<typeof BandcampAlbumGeoname>;
+
+export const BandcampAlbumStreamingUrl = z.record(z.string(), z.string()).optional();
+export type BandcampAlbumStreamingUrl = z.infer<typeof BandcampAlbumStreamingUrl>;
+
+export const BandcampAlbumTag = z.object({
+  name: z.string(),
+  norm_name: z.string(),
+  url: z.string(),
+  isloc: z.boolean(),
+  loc_id: z.union([z.number(), z.null()]),
+  geoname: z.union([BandcampAlbumGeoname, z.null()])
+});
+export type BandcampAlbumTag = z.infer<typeof BandcampAlbumTag>;
+
+export const BandcampAlbumTrack = z.object({
+  track_id: z.number(),
+  track_license_id: z.union([z.string(), z.number(), z.null()]),
+  title: z.string(),
+  track_num: z.number(),
+  streaming_url: BandcampAlbumStreamingUrl,
+  duration: z.number(),
+  encodings_id: z.number(),
+  album_title: z.union([z.string(), z.null()]),
+  band_name: z.string(),
+  art_id: z.union([z.number(), z.null()]),
+  album_id: z.number(),
+  is_streamable: z.boolean(),
+  has_lyrics: z.boolean(),
+  is_set_price: z.boolean(),
+  price: z.number(),
+  has_digital_download: z.boolean(),
+  merch_ids: z.union([z.array(z.string()), z.array(z.number()), z.null()]),
+  merch_sold_out: z.union([z.boolean(), z.null()]),
+  currency: z.string(),
+  require_email: z.boolean(),
+  is_purchasable: z.boolean(),
+  band_id: z.number(),
+  label: z.union([z.string(), z.null()]),
+  label_id: z.union([z.number(), z.null()]),
+  track_url: z.string()
+});
+export type BandcampAlbumTrack = z.infer<typeof BandcampAlbumTrack>;
+
+export const BandcampAlbumDetails = z.object({
+  id: z.number(),
+  type: z.string(),
+  title: z.string(),
+  bandcamp_url: z.string(),
+  art_id: z.number(),
+  band: BandcampAlbumBand,
+  tralbum_artist: z.string(),
+  package_art: z.array(z.number()),
+  featured_track_id: z.number(),
+  tracks: z.array(BandcampAlbumTrack),
+  credits: z.string(),
+  about: z.string(),
+  album_id: z.number(),
+  album_title: z.string(),
+  release_date: z.number(),
+  is_purchasable: z.boolean(),
+  free_download: z.boolean(),
+  is_preorder: z.boolean(),
+  tags: z.union([z.array(BandcampAlbumTag), z.null()]),
+  currency: z.string(),
+  is_set_price: z.boolean(),
+  price: z.number(),
+  require_email: z.boolean(),
+  label: z.union([z.string(), z.null()]),
+  label_id: z.union([z.number(), z.null()]),
+  package_details_lite: z.record(z.string(), BandcampAlbumPackageDetailsLite),
+  has_digital_download: z.boolean(),
+  num_downloadable_tracks: z.number(),
+  merch_sold_out: z.boolean(),
+  streaming_limit: z.number()
+});
+export type BandcampAlbumDetails = z.infer<typeof BandcampAlbumDetails>;
+
 export const VlcCommand = z.discriminatedUnion('command', [
   // No-op / reachability probe
   z.object({ command: z.null() }),

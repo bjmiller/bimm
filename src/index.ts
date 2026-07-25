@@ -12,6 +12,8 @@ const height = 768;
 const width = 1280;
 const iconPath = join(__dirname, 'icons', 'musicalNote512.png');
 
+app.setName('BIMM');
+
 const createWindow = () => {
   const win = new BrowserWindow({
     webPreferences: {

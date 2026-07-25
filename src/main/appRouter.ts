@@ -45,10 +45,10 @@ export const appRouter = t.router({
     })
   },
   web: {
-    obtainAlbumGenres: t.procedure.input(Album).query(async ({ input }) => {
+    obtainSpotifyGenres: t.procedure.input(Album).query(async ({ input }) => {
       return await fetchChosicGenres(input);
     }),
-    getGenres: t.procedure.input(z.array(Album)).mutation(async ({ input }) => {
+    getSpotifyGenres: t.procedure.input(z.array(Album)).mutation(async ({ input }) => {
       return await fetchMissingChosicGenres(input);
     })
   },

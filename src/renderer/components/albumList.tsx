@@ -235,7 +235,7 @@ export const AlbumList = (props: AlbumListProps) => {
     [focusedAlbum]
   );
   const genreQuery = useQuery(
-    trpc.web.obtainAlbumGenres.queryOptions(genreLookupInput, {
+    trpc.web.obtainSpotifyGenres.queryOptions(genreLookupInput, {
       enabled: false,
       refetchOnMount: false,
       refetchOnWindowFocus: false,
@@ -243,7 +243,7 @@ export const AlbumList = (props: AlbumListProps) => {
       retry: false
     })
   );
-  const populateAlbumGenresMutation = useMutation(trpc.web.getGenres.mutationOptions());
+  const populateAlbumGenresMutation = useMutation(trpc.web.getSpotifyGenres.mutationOptions());
 
   const fetchFocusedAlbumGenres = useCallback(() => {
     if (focusedAlbum == null) {

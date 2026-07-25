@@ -3,9 +3,10 @@ import { Album, AppSettings, CompressedFile } from '../types';
 import superjson from 'superjson';
 import {
   moveAlbumToTarget,
-  readAlbumDirectories,
+  readCachedAlbums,
   readInboxDirectory,
   readOrCreateSettings,
+  refreshAlbumCache,
   trashItem,
   writeSettings
 } from './backendOps';
@@ -25,9 +26,18 @@ export const appRouter = t.router({
     })
   },
   file: {
+    // Fresh album list: revalidates against the filesystem (reusing unchanged
+    // cached albums) and persists the result back to the cache. TanStack Query
+    // dedupes this to one in-flight request per directory.
     getAlbums: t.procedure.input(z.string().optional()).query(async ({ input }) => {
-      const directoryEntries = await readAlbumDirectories(input);
-      return directoryEntries.filter((entry) => entry.tracks?.length ?? 0 > 0);
+      const albums = await refreshAlbumCache(input);
+      return albums.filter((entry) => entry.tracks?.length ?? 0 > 0);
+    }),
+    // Stale-while-revalidate placeholder: the on-disk cache from the previous
+    // run, used by the renderer to paint instantly while getAlbums revalidates.
+    getCachedAlbums: t.procedure.input(z.string().optional()).query(async ({ input }) => {
+      const cached = await readCachedAlbums(input);
+      return cached?.filter((entry) => entry.tracks?.length ?? 0 > 0);
     }),
     getInbox: t.procedure.input(z.string().optional()).query(async ({ input }) => {
       return await readInboxDirectory(input);

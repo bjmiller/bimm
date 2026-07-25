@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState, type RefObject } from 'react';
 import { useTRPC } from '../lib/trpc';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   type SortingState,
   createColumnHelper,
@@ -73,6 +73,7 @@ type InboxRowFocusState = string | undefined;
 export const Inbox = (props: InboxProps) => {
   const { clearRowFocus, focusFirstRowRequest, inboxDirectory, paneRef: listRef } = props;
   const trpc = useTRPC();
+  const queryClient = useQueryClient();
   const inboxQuery = useQuery(trpc.file.getInbox.queryOptions(inboxDirectory));
 
   const data = useMemo(() => inboxQuery.data ?? [], [inboxQuery.data]);
@@ -204,12 +205,15 @@ export const Inbox = (props: InboxProps) => {
       try {
         await moveAlbumToTargetMutation.mutateAsync(entry);
         await inboxQuery.refetch();
+        // The album moved into a music directory — refresh any cached album
+        // list so it appears without waiting for that query to go stale.
+        await queryClient.invalidateQueries({ queryKey: trpc.file.getAlbums.pathKey() });
       } catch (e) {
         // eslint-disable-next-line no-console
         console.error(e);
       }
     })();
-  }, [inboxQuery, moveAlbumToTargetMutation, table]);
+  }, [inboxQuery, moveAlbumToTargetMutation, queryClient, table, trpc]);
 
   useHotkey('F6', handleF6);
 

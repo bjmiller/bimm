@@ -98,6 +98,8 @@ export const AlbumList = (props: AlbumListProps) => {
     onSelectedRowsChange
   } = props;
   const trpc = useTRPC();
+  // Shares the single getAlbums query for this directory (see bimm.tsx), so
+  // the table updates in place when the fresh revalidation lands.
   const albumsQuery = useQuery(trpc.file.getAlbums.queryOptions(selected));
 
   const data = useMemo(() => albumsQuery.data?.filter((album) => album.tracks?.length !== 0) ?? [], [albumsQuery.data]);

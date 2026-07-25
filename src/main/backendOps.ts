@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import { type Dirent, type PathLike } from 'node:fs';
 import os from 'node:os';
-import { basename, join, sep } from 'node:path';
+import { basename, dirname, join, sep } from 'node:path';
 import log from 'electron-log/main';
 import { type IAudioMetadata, parseFile } from 'music-metadata';
 import pLimit from 'p-limit';
@@ -11,6 +11,7 @@ import duration from 'dayjs/plugin/duration';
 dayjs.extend(duration);
 import { AppSettings, AlbumMetadata, type Album, type CompressedFile, type InboxEntry, type Track } from '../types';
 import { moveToTarget, resolveNewAlbumTargetDir } from './archiveOps';
+import { invalidateAlbumInCaches } from './albumCache';
 import { messageFrom } from './lib/messageFrom';
 
 log.transports.file.level = false;
@@ -166,6 +167,7 @@ export const writeAlbumMetadata = async (albumPath: string, metadata: AlbumMetad
 
   await fs.writeFile(metadataPath, JSON.stringify(validation.data, null, SPACES));
   await fs.utimes(albumPath, directoryStats.atime, directoryStats.mtime);
+  await invalidateAlbumInCaches(albumPath);
 };
 
 const readTracks = async (dir: string) => {
@@ -234,6 +236,25 @@ export const readAlbumDirectories = async (root?: PathLike): Promise<Album[]> =>
   const loadTime = dayjs.duration(end - start);
   log.info(`Album scan time: ${loadTime.asSeconds()}`);
   return albumValues;
+};
+
+// Reads the on-disk album cache for instant rendering (stale-while-revalidate
+// placeholder). Returns undefined when no usable cache exists.
+export const readCachedAlbums = async (root: string | undefined): Promise<Album[] | undefined> => {
+  if (root == null || root === '') return undefined;
+  const { readAlbumCache } = await import('./albumCache');
+  const cached = await readAlbumCache(root);
+  return cached != null && cached.length > 0 ? cached : undefined;
+};
+
+export const refreshAlbumCache = async (root: string | undefined): Promise<Album[]> => {
+  if (root == null || root === '') return [];
+
+  log.info(`Scanning filesystem for ${root}...`);
+  const albums = await readAlbumDirectories(root);
+  const { writeAlbumCache } = await import('./albumCache');
+  await writeAlbumCache(root, albums);
+  return albums;
 };
 
 const directoryHasAudio = async (dir: string) => {
@@ -328,9 +349,39 @@ export const moveAlbumToTarget = async (album: Album): Promise<Album> => {
   const settings = await readOrCreateSettings();
   const targetDir = resolveNewAlbumTargetDir(settings);
 
+  const sourceDir = dirname(album.fullpath);
   const finalDir = await moveToTarget(album.fullpath, targetDir);
 
-  return readAlbumFromDir(finalDir, basename(finalDir));
+  const refreshed = await readAlbumFromDir(finalDir, basename(finalDir));
+
+  // Keep the affected directory caches consistent with the move.
+  const { readAlbumCache, writeAlbumCache } = await import('./albumCache');
+  const updates: Promise<void>[] = [];
+
+  const removeFromSourceCache = async () => {
+    const cached = await readAlbumCache(sourceDir);
+    if (cached != null) {
+      await writeAlbumCache(
+        sourceDir,
+        cached.filter((entry) => entry.fullpath !== album.fullpath)
+      );
+    }
+  };
+  updates.push(removeFromSourceCache());
+
+  if (targetDir !== sourceDir) {
+    const addToTargetCache = async () => {
+      const cached = await readAlbumCache(targetDir);
+      if (cached != null && !cached.some((entry) => entry.fullpath === refreshed.fullpath)) {
+        await writeAlbumCache(targetDir, [...cached, refreshed]);
+      }
+    };
+    updates.push(addToTargetCache());
+  }
+
+  await Promise.all(updates);
+
+  return refreshed;
 };
 
 export const trashItem = async (itemPath: string): Promise<boolean> => {

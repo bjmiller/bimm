@@ -72,12 +72,16 @@ export const searchFilter = (row: Row<Album>, columnId: string, filterValue: any
       return re.test(album.filename);
     });
   }
-  // Genre filter (comma-separated list, case-insensitive, spaces and hyphens equivalent)
+  // Genre filter (comma-separated list, case-insensitive, spaces and hyphens equivalent).
+  // The sentinel value "-" matches albums that have no genres.
   if (shouldInclude && filter.genre != null) {
     const parseGenreResult = searchKeywordValidator.safeParse(filter.genre);
     if (parseGenreResult.success) {
-      const filterGenres = parseGenreResult.data
-        .flatMap((genre) => genre.split(','))
+      const rawGenres = parseGenreResult.data.flatMap((genre) => genre.split(','));
+      // "-" is a sentinel meaning "albums with no genres".
+      const wantsNoGenre = rawGenres.some((genre) => genre.trim() === '-');
+      const filterGenres = rawGenres
+        .filter((genre) => genre.trim() !== '-')
         .map((genre) =>
           genre
             .trim()
@@ -85,20 +89,22 @@ export const searchFilter = (row: Row<Album>, columnId: string, filterValue: any
             .replace(/[-\s]+/g, ' ')
         )
         .filter((genre) => genre !== '');
-      if (filterGenres.length > 0) {
+      if (wantsNoGenre || filterGenres.length > 0) {
         const albumGenres = [
+          ...(album.manualTags ?? []),
           ...(album.spotifyGenres ?? []),
-          ...(album.bandcampTags ?? []),
-          ...(album.manualTags ?? [])
+          ...(album.bandcampTags ?? [])
         ].map((genre) =>
           genre
             .trim()
             .toLowerCase()
             .replace(/[-\s]+/g, ' ')
         );
-        shouldInclude = filterGenres.some((filterGenre) =>
+        const hasNoGenres = albumGenres.length === 0;
+        const matchesGenre = filterGenres.some((filterGenre) =>
           albumGenres.some((albumGenre) => albumGenre.includes(filterGenre))
         );
+        shouldInclude = (wantsNoGenre && hasNoGenres) || (filterGenres.length > 0 && matchesGenre);
       }
     }
   }

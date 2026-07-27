@@ -83,6 +83,8 @@
     "superjson": "^2.2.6",
     "tar": "^7.5.16",
     "trpc-electron": "^0.1.2",
+    "world-cities-json": "^1.0.1",
+    "world-countries": "^5.1.0",
     "zod": "^4.4.3"
   }
 }

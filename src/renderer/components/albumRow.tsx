@@ -8,6 +8,7 @@ import { Cell } from './cell';
 import type { RowFocusRow } from '../lib/rowFocus';
 import { FolderIcon } from '../../icons/folder';
 import { Genre } from './genre';
+import { sortGenresByRelevance } from '../lib/genreRelevance';
 dayjs.extend(duration);
 
 type Row<TData> = TanStackRow<TData> & RowFocusRow;
@@ -27,9 +28,7 @@ const flexById = <TData,>(row: Row<TData>, id: string) => {
 export const AlbumRow = <TData extends Album>(props: AlbumRowProps<TData>) => {
   const row = props.row;
   const album = props.row.original;
-  const genres = [
-    ...new Set([...(album.spotifyGenres ?? []), ...(album.bandcampTags ?? []), ...(album.manualTags ?? [])])
-  ];
+  const genres = sortGenresByRelevance(album);
   const viewContext = props.viewContext;
   const selected = row.getIsSelected() ? 'bg-blue-200' : 'even:bg-[#f4f5f5]';
   return (

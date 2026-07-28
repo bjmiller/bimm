@@ -19,7 +19,7 @@ import {
   type Track
 } from '../types';
 import { moveToTarget, resolveNewAlbumTargetDir } from './archiveOps';
-import { invalidateAlbumInCaches } from './albumCache';
+import { updateAlbumInCaches } from './albumCache';
 import { messageFrom } from './lib/messageFrom';
 import { normalizeTagList } from '../lib/tags';
 
@@ -180,7 +180,37 @@ export const writeAlbumMetadata = async (albumPath: string, metadata: AlbumMetad
 
   await fs.writeFile(metadataPath, JSON.stringify(validation.data, null, SPACES));
   await fs.utimes(albumPath, directoryStats.atime, directoryStats.mtime);
-  await invalidateAlbumInCaches(albumPath);
+  await updateAlbumInCaches(albumPath, metadata);
+};
+
+// Serializes read-modify-write cycles to a given album's bimm.json. Concurrent
+// writers (e.g. Chosic genres and Bandcamp tags fetched in parallel) each read
+// the file before writing, so without serialization the second write would
+// clobber the first's keys.
+const albumMetadataUpdateQueues = new Map<string, Promise<void>>();
+
+export const updateAlbumMetadata = async (
+  albumPath: string,
+  update: (metadata: AlbumMetadata) => AlbumMetadata
+): Promise<void> => {
+  const previous = albumMetadataUpdateQueues.get(albumPath) ?? Promise.resolve();
+
+  const current = previous
+    .catch(() => undefined)
+    .then(async () => {
+      const metadata = await readAlbumMetadata(albumPath);
+      await writeAlbumMetadata(albumPath, update(metadata));
+    });
+
+  albumMetadataUpdateQueues.set(albumPath, current);
+
+  try {
+    await current;
+  } finally {
+    if (albumMetadataUpdateQueues.get(albumPath) === current) {
+      albumMetadataUpdateQueues.delete(albumPath);
+    }
+  }
 };
 
 // Persists edited tags for a single album. Reads the existing metadata first so
@@ -191,26 +221,28 @@ export const writeAlbumMetadata = async (albumPath: string, metadata: AlbumMetad
 // retagged. Returns the re-read album so the renderer can update in place.
 export const writeAlbumTags = async (update: AlbumTagUpdate): Promise<Album> => {
   const { albumPath, tags } = update;
-  const existingMetadata = await readAlbumMetadata(albumPath);
-  const mergedMetadata: AlbumMetadata = { ...existingMetadata };
 
-  for (const field of ALBUM_TAG_FIELDS) {
-    const editedTags = tags[field];
+  await updateAlbumMetadata(albumPath, (existingMetadata) => {
+    const mergedMetadata: AlbumMetadata = { ...existingMetadata };
 
-    if (editedTags == null) {
-      continue;
+    for (const field of ALBUM_TAG_FIELDS) {
+      const editedTags = tags[field];
+
+      if (editedTags == null) {
+        continue;
+      }
+
+      const normalized = normalizeTagList(editedTags);
+
+      if (normalized.length === 0) {
+        delete mergedMetadata[field];
+      } else {
+        mergedMetadata[field] = normalized;
+      }
     }
 
-    const normalized = normalizeTagList(editedTags);
-
-    if (normalized.length === 0) {
-      delete mergedMetadata[field];
-    } else {
-      mergedMetadata[field] = normalized;
-    }
-  }
-
-  await writeAlbumMetadata(albumPath, mergedMetadata);
+    return mergedMetadata;
+  });
 
   return await readAlbumFromDir(albumPath);
 };

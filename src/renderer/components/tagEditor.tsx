@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { useHotkeys } from '@tanstack/react-hotkeys';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTRPC } from '../lib/trpc';
 import { addTags, removeTag } from '../../lib/tags';
-import { type Album, type AlbumMetadata } from '../../types';
+import { type Album, type AlbumMetadata, type InboxEntry } from '../../types';
 import { TagField } from './tagField';
 
 interface TagEditorProps {
@@ -53,11 +53,25 @@ const BUTTON_CLASSES =
  */
 export const TagEditor = ({ album, onClose, onSaved }: TagEditorProps) => {
   const trpc = useTRPC();
+  const queryClient = useQueryClient();
   const dialogRef = useRef<HTMLDivElement>(null);
   const [tags, setTags] = useState<TagState>(() => tagStateFrom(album));
   const [error, setError] = useState<string | undefined>(undefined);
   const writeAlbumTagsMutation = useMutation(trpc.file.writeAlbumTags.mutationOptions());
   const { isPending } = writeAlbumTagsMutation;
+
+  // Swap the saved album into any cached album/inbox list so the row
+  // re-renders with the new tags immediately, without waiting on a refetch.
+  const patchAlbumInQueryCaches = useCallback(
+    (updatedAlbum: Album) => {
+      const patchEntries = <T extends { fullpath: string }>(entries: T[] | undefined): T[] | undefined =>
+        entries?.map((entry) => (entry.fullpath === updatedAlbum.fullpath ? { ...entry, ...updatedAlbum } : entry));
+
+      queryClient.setQueriesData<Album[]>({ queryKey: trpc.file.getAlbums.pathKey() }, patchEntries);
+      queryClient.setQueriesData<InboxEntry[]>({ queryKey: trpc.file.getInbox.pathKey() }, patchEntries);
+    },
+    [queryClient, trpc]
+  );
 
   // Capture the outgoing focus and move into the first tag input in one effect,
   // so ordering is deterministic. React's `autoFocus` prop is applied during
@@ -94,14 +108,15 @@ export const TagEditor = ({ album, onClose, onSaved }: TagEditorProps) => {
 
     void (async () => {
       try {
-        await writeAlbumTagsMutation.mutateAsync({ albumPath: album.fullpath, tags });
+        const updatedAlbum = await writeAlbumTagsMutation.mutateAsync({ albumPath: album.fullpath, tags });
+        patchAlbumInQueryCaches(updatedAlbum);
         await onSaved?.();
         onClose();
       } catch (saveError) {
         setError(saveError instanceof Error ? saveError.message : 'Unable to save tags.');
       }
     })();
-  }, [album.fullpath, isPending, onClose, onSaved, tags, writeAlbumTagsMutation]);
+  }, [album.fullpath, isPending, onClose, onSaved, patchAlbumInQueryCaches, tags, writeAlbumTagsMutation]);
 
   // Keeps Tab inside the modal. This also shadows the app-wide Tab/Shift+Tab
   // pane cycling: the dialog listener sits deeper in the DOM and stops

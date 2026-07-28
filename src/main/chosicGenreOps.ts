@@ -8,7 +8,7 @@ import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import PQueue from 'p-queue';
 import { getLevenshteinDistance } from './lib/getLevenshteinDistance';
 import { type Album, ChosicTrackSearch, ChosicTrack, ChosicArtistSearch } from '../types';
-import { readAlbumMetadata, writeAlbumMetadata } from './backendOps';
+import { readAlbumMetadata, updateAlbumMetadata } from './backendOps';
 import { messageFrom } from './lib/messageFrom';
 
 chromium.use(StealthPlugin());
@@ -42,12 +42,10 @@ const shouldPersistEmptySpotifyGenres = (error: unknown) => {
 };
 
 const writeSpotifyGenres = async (albumPath: string, spotifyGenres: string[]) => {
-  const metadata = await readAlbumMetadata(albumPath);
-
-  await writeAlbumMetadata(albumPath, {
+  await updateAlbumMetadata(albumPath, (metadata) => ({
     ...metadata,
     spotifyGenres
-  });
+  }));
 };
 
 type ChosicFailureKind = 'blocked' | 'captcha' | 'token';
@@ -281,6 +279,14 @@ const downloadChosicGenres = async (album: Album) => {
 
 export const fetchChosicGenres = (album: Album): Promise<string[]> => {
   return chosicQueue.add(() => fetchChosicGenresUnqueued(album));
+};
+
+// Downloads genres without persisting them — the caller decides how to write.
+// Used when another writer may be persisting different keys to the same
+// bimm.json concurrently, so the fetch and the write can be coordinated.
+// Throws when the fetch fails, so the caller can treat it as a rejection.
+export const downloadChosicGenresQueued = (album: Album): Promise<string[]> => {
+  return chosicQueue.add(() => downloadChosicGenres(album));
 };
 
 const fetchChosicGenresUnqueued = async (album: Album): Promise<string[]> => {

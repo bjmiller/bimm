@@ -274,16 +274,24 @@ export const AlbumList = (props: AlbumListProps) => {
       return;
     }
 
-    void genreQuery.refetch();
-  }, [focusedAlbum, genreQuery]);
+    void (async () => {
+      await genreQuery.refetch();
+      // The fetch persisted to bimm.json — refresh so the row shows the new genres.
+      await albumsQuery.refetch();
+    })();
+  }, [albumsQuery, focusedAlbum, genreQuery]);
 
   const fetchFocusedBandcampTags = useCallback(() => {
     if (focusedAlbum == null) {
       return;
     }
 
-    void bandcampTagQuery.refetch();
-  }, [focusedAlbum, bandcampTagQuery]);
+    void (async () => {
+      await bandcampTagQuery.refetch();
+      // The fetch persisted to bimm.json — refresh so the row shows the new tags.
+      await albumsQuery.refetch();
+    })();
+  }, [albumsQuery, focusedAlbum, bandcampTagQuery]);
 
   const fetchAllAlbumGenres = useCallback(() => {
     if (populateAlbumGenresMutation.isPending) {

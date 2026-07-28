@@ -75,9 +75,10 @@ export const writeAlbumCache = async (directory: string, albums: Album[]): Promi
   }
 };
 
-// Drop all cached entries for an album path regardless of which music
-// directory it lives in (directories aren't known at invalidation time).
-export const invalidateAlbumInCaches = async (albumPath: string): Promise<void> => {
+// Apply updated album fields to every cached album list that contains the
+// album, regardless of which music directory it lives in (directories aren't
+// known at update time). Caches that don't contain the album are left alone.
+export const updateAlbumInCaches = async (albumPath: string, updates: Partial<Album>): Promise<void> => {
   let cacheFiles: string[];
   try {
     cacheFiles = await fs.readdir(CACHE_DIR);
@@ -90,20 +91,57 @@ export const invalidateAlbumInCaches = async (albumPath: string): Promise<void> 
   }
 
   const targetSuffix = `${sep}${albumPath}${sep}`;
-  const removals = cacheFiles
+  const updatesJson = JSON.stringify(updates);
+
+  const updates_ = cacheFiles
     .filter((file) => file.endsWith('.json'))
     .map(async (file) => {
       const filePath = join(CACHE_DIR, file);
       try {
         const contents = await fs.readFile(filePath, { encoding: 'utf-8' });
-        if (contents.includes(targetSuffix)) {
-          await fs.rm(filePath, { force: true });
-          log.info(`Invalidated album cache ${file} for ${albumPath}`);
+        if (!contents.includes(targetSuffix)) {
+          return;
         }
+
+        const envelope = superjson.parse<AlbumCacheEnvelope>(contents);
+        if (envelope.version !== CACHE_SCHEMA_VERSION) {
+          return;
+        }
+
+        const index = envelope.albums.findIndex((album) => album.fullpath === albumPath);
+        if (index < 0) {
+          return;
+        }
+
+        const existing = envelope.albums[index];
+        if (existing == null) {
+          return;
+        }
+
+        // Spread `updates` before the required identity fields so a Partial
+        // can't blank them out with `undefined`.
+        envelope.albums[index] = {
+          ...existing,
+          ...updates,
+          filename: updates.filename ?? existing.filename,
+          fullpath: updates.fullpath ?? existing.fullpath,
+          tracks: updates.tracks ?? existing.tracks
+        };
+        envelope.updatedAt = new Date().toISOString();
+
+        const tempPath = `${filePath}.${randomUUID()}.tmp`;
+        try {
+          await fs.writeFile(tempPath, superjson.stringify(envelope));
+          await fs.rename(tempPath, filePath);
+        } catch (writeError) {
+          await fs.rm(tempPath, { force: true }).catch(() => undefined);
+          throw writeError;
+        }
+        log.info(`Updated album cache ${file} for ${albumPath} with ${updatesJson}`);
       } catch (fileError) {
         log.warn(`Unable to inspect album cache ${file}: ${messageFrom(fileError)}`);
       }
     });
 
-  await Promise.all(removals);
+  await Promise.all(updates_);
 };

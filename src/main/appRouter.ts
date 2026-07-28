@@ -1,23 +1,65 @@
 import { initTRPC } from '@trpc/server';
 import { Album, AlbumTagUpdate, AppSettings, CompressedFile } from '../types';
 import superjson from 'superjson';
+import log from 'electron-log/main';
 import {
   moveAlbumToTarget,
+  readAlbumFromDir,
   readCachedAlbums,
   readInboxDirectory,
   readOrCreateSettings,
   refreshAlbumCache,
   trashItem,
+  updateAlbumMetadata,
   writeAlbumTags,
   writeSettings
 } from './backendOps';
-import { fetchChosicGenres, fetchMissingChosicGenres } from './chosicGenreOps';
-import { fetchBandcampTags, fetchMissingBandcampTags } from './bandcampTagOps';
+import { downloadChosicGenresQueued, fetchChosicGenres, fetchMissingChosicGenres } from './chosicGenreOps';
+import { downloadBandcampTagsQueued, fetchBandcampTags, fetchMissingBandcampTags } from './bandcampTagOps';
 import { z } from 'zod';
 import { addAndPlayAlbums } from './vlcControlOps';
 import { extractAndIngestAlbum } from './archiveOps';
+import { messageFrom } from './lib/messageFrom';
 
 const t = initTRPC.create({ transformer: superjson });
+
+// Fetches Chosic genres and Bandcamp tags for a freshly extracted album in
+// parallel. Each download is independent — a failure in one is logged and
+// treated as "no data" rather than propagated, so the other can still
+// complete. Writes go through `updateAlbumMetadata`, which serializes the
+// read-modify-write cycles to bimm.json so the two results merge instead of
+// clobbering each other when both succeed.
+const fetchTagsForExtractedAlbum = async (album: Album): Promise<void> => {
+  const albumLabel = album.filename;
+
+  const fetchGenres = async (): Promise<void> => {
+    let genres: string[];
+    try {
+      genres = await downloadChosicGenresQueued(album);
+    } catch (error) {
+      log.error(`[extract] chosic genre fetch failed (${albumLabel})`, messageFrom(error));
+      return;
+    }
+
+    await updateAlbumMetadata(album.fullpath, (metadata) => ({ ...metadata, spotifyGenres: genres }));
+    log.log(`[extract] stored chosic genres (${albumLabel})`, { genres });
+  };
+
+  const fetchTags = async (): Promise<void> => {
+    let bandcampTags: string[];
+    try {
+      bandcampTags = await downloadBandcampTagsQueued(album);
+    } catch (error) {
+      log.error(`[extract] bandcamp tag fetch failed (${albumLabel})`, messageFrom(error));
+      return;
+    }
+
+    await updateAlbumMetadata(album.fullpath, (metadata) => ({ ...metadata, bandcampTags }));
+    log.log(`[extract] stored bandcamp tags (${albumLabel})`, { bandcampTags });
+  };
+
+  await Promise.allSettled([fetchGenres(), fetchTags()]);
+};
 export const appRouter = t.router({
   settings: {
     getSettings: t.procedure.query(async () => {
@@ -58,7 +100,15 @@ export const appRouter = t.router({
   },
   archive: {
     extractAndIngest: t.procedure.input(CompressedFile).mutation(async ({ input }) => {
-      return await extractAndIngestAlbum(input);
+      const album = await extractAndIngestAlbum(input);
+      if (album == null) {
+        return null;
+      }
+
+      await fetchTagsForExtractedAlbum(album);
+
+      // Re-read so the returned album reflects any genres/tags just persisted.
+      return await readAlbumFromDir(album.fullpath);
     })
   },
   web: {

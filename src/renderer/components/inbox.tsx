@@ -8,7 +8,7 @@ import {
   getCoreRowModel,
   getSortedRowModel
 } from '@tanstack/react-table';
-import { useHotkey } from '@tanstack/react-hotkeys';
+import { useHotkeys } from '@tanstack/react-hotkeys';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
 import { AlbumRow } from './albumRow';
@@ -19,6 +19,7 @@ import { Album, CompressedFile, type InboxEntry } from '../../types';
 import { useInboxFocusManagement } from '../lib/focusManagement';
 import { RowFocus } from '../lib/rowFocus';
 import { type Row as AlbumListRow } from './albumList';
+import { TagEditor } from './tagEditor';
 dayjs.extend(duration);
 
 interface InboxProps {
@@ -67,6 +68,22 @@ const columns = [
 ];
 
 const getRowId = (row: InboxEntry) => row.fullpath;
+
+const EMPTY_CHOSIC_LOOKUP_ALBUM: Album = { filename: '', fullpath: '', tracks: [] };
+
+const getChosicLookupAlbum = (album: Album): Album => ({
+  filename: album.filename,
+  fullpath: album.fullpath,
+  tracks: album.tracks?.slice(0, 1)
+});
+
+const EMPTY_BANDCAMP_LOOKUP_ALBUM: Album = { filename: '', fullpath: '', tracks: [] };
+
+const getBandcampLookupAlbum = (album: Album): Album => ({
+  filename: album.filename,
+  fullpath: album.fullpath,
+  tracks: album.tracks?.slice(0, 1)
+});
 
 type InboxRowFocusState = string | undefined;
 
@@ -149,7 +166,7 @@ export const Inbox = (props: InboxProps) => {
     [extractAndPlay]
   );
 
-  const handleShiftEnter = useCallback(() => {
+  const extractOrPlayFocusedEntry = useCallback(() => {
     const focusedRowId = table.getFocusedRowId();
     if (focusedRowId == null) {
       return;
@@ -182,9 +199,7 @@ export const Inbox = (props: InboxProps) => {
     })();
   }, [addAndPlayAlbumsMutation, extractAndPlay, table]);
 
-  useHotkey('Shift+Enter', handleShiftEnter);
-
-  const handleF6 = useCallback(() => {
+  const moveFocusedAlbumToTarget = useCallback(() => {
     const focusedRowId = table.getFocusedRowId();
     if (focusedRowId == null) {
       return;
@@ -215,9 +230,7 @@ export const Inbox = (props: InboxProps) => {
     })();
   }, [inboxQuery, moveAlbumToTargetMutation, queryClient, table, trpc]);
 
-  useHotkey('F6', handleF6);
-
-  const handleModDelete = useCallback(() => {
+  const trashFocusedEntry = useCallback(() => {
     const focusedRowId = table.getFocusedRowId();
     if (focusedRowId == null) {
       return;
@@ -241,7 +254,143 @@ export const Inbox = (props: InboxProps) => {
     })();
   }, [inboxQuery, table, trashItemMutation]);
 
-  useHotkey('Mod+Delete', handleModDelete);
+  const focusedEntry = rowFocus == null ? undefined : table.getRow(rowFocus)?.original;
+  const focusedAlbum = focusedEntry != null && isAlbum(focusedEntry) ? focusedEntry : undefined;
+
+  const genreLookupInput = useMemo(
+    () => (focusedAlbum == null ? EMPTY_CHOSIC_LOOKUP_ALBUM : getChosicLookupAlbum(focusedAlbum)),
+    [focusedAlbum]
+  );
+  const genreQuery = useQuery(
+    trpc.web.obtainSpotifyGenres.queryOptions(genreLookupInput, {
+      enabled: false,
+      refetchOnMount: false,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      retry: false
+    })
+  );
+  const populateAlbumGenresMutation = useMutation(trpc.web.getSpotifyGenres.mutationOptions());
+
+  const bandcampLookupInput = useMemo(
+    () => (focusedAlbum == null ? EMPTY_BANDCAMP_LOOKUP_ALBUM : getBandcampLookupAlbum(focusedAlbum)),
+    [focusedAlbum]
+  );
+  const bandcampTagQuery = useQuery(
+    trpc.web.obtainBandcampTags.queryOptions(bandcampLookupInput, {
+      enabled: false,
+      refetchOnMount: false,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      retry: false
+    })
+  );
+  const populateBandcampTagsMutation = useMutation(trpc.web.getBandcampTags.mutationOptions());
+
+  const fetchFocusedAlbumGenres = useCallback(() => {
+    if (focusedAlbum == null) {
+      return;
+    }
+
+    void (async () => {
+      await genreQuery.refetch();
+      // The fetch persisted to bimm.json — refresh so the row shows the new genres.
+      await inboxQuery.refetch();
+    })();
+  }, [focusedAlbum, genreQuery, inboxQuery]);
+
+  const fetchFocusedBandcampTags = useCallback(() => {
+    if (focusedAlbum == null) {
+      return;
+    }
+
+    void (async () => {
+      await bandcampTagQuery.refetch();
+      // The fetch persisted to bimm.json — refresh so the row shows the new tags.
+      await inboxQuery.refetch();
+    })();
+  }, [focusedAlbum, bandcampTagQuery, inboxQuery]);
+
+  const fetchAllAlbumGenres = useCallback(() => {
+    if (populateAlbumGenresMutation.isPending) {
+      return;
+    }
+
+    const albums = table
+      .getRowModel()
+      .rows.map((row) => row.original)
+      .filter(isAlbum)
+      .map(getChosicLookupAlbum);
+
+    if (albums.length === 0) {
+      return;
+    }
+
+    void (async () => {
+      try {
+        await populateAlbumGenresMutation.mutateAsync(albums);
+      } finally {
+        await inboxQuery.refetch();
+      }
+    })();
+  }, [inboxQuery, populateAlbumGenresMutation, table]);
+
+  const fetchAllBandcampTags = useCallback(() => {
+    if (populateBandcampTagsMutation.isPending) {
+      return;
+    }
+
+    const albums = table
+      .getRowModel()
+      .rows.map((row) => row.original)
+      .filter(isAlbum)
+      .map(getBandcampLookupAlbum);
+
+    if (albums.length === 0) {
+      return;
+    }
+
+    void (async () => {
+      try {
+        await populateBandcampTagsMutation.mutateAsync(albums);
+      } finally {
+        await inboxQuery.refetch();
+      }
+    })();
+  }, [inboxQuery, populateBandcampTagsMutation, table]);
+
+  // The album being retagged is captured on open rather than read live: focusing
+  // the modal's input moves focus out of the inbox pane, which clears row focus.
+  const [tagEditorAlbum, setTagEditorAlbum] = useState<Album | undefined>(undefined);
+
+  const openTagEditor = useCallback(() => {
+    if (focusedAlbum == null) {
+      return;
+    }
+
+    setTagEditorAlbum(focusedAlbum);
+  }, [focusedAlbum]);
+
+  const closeTagEditor = useCallback(() => {
+    setTagEditorAlbum(undefined);
+  }, []);
+
+  const refetchInboxAfterSave = useCallback(async () => {
+    await inboxQuery.refetch();
+  }, [inboxQuery]);
+
+  useHotkeys([
+    { hotkey: 'Shift+Enter', callback: extractOrPlayFocusedEntry },
+    { hotkey: 'F6', callback: moveFocusedAlbumToTarget },
+    { hotkey: 'Mod+Delete', callback: trashFocusedEntry },
+    { hotkey: 'Mod+/', callback: fetchFocusedAlbumGenres },
+    { hotkey: 'Control+Alt+Meta+/', callback: fetchAllAlbumGenres },
+    { hotkey: 'Mod+\\', callback: fetchFocusedBandcampTags },
+    { hotkey: 'Control+Alt+Meta+\\', callback: fetchAllBandcampTags },
+    // Disabled while open so the shortcut can't re-seed the modal from a stale
+    // focused row underneath it.
+    { hotkey: 'Mod+G', callback: openTagEditor, options: { enabled: tagEditorAlbum == null } }
+  ]);
 
   if (inboxQuery.isLoading) {
     return (
@@ -303,6 +452,14 @@ export const Inbox = (props: InboxProps) => {
             </tbody>
           </table>
         </div>
+        {tagEditorAlbum != null && (
+          <TagEditor
+            album={tagEditorAlbum}
+            onClose={closeTagEditor}
+            onSaved={refetchInboxAfterSave}
+            key={tagEditorAlbum.fullpath}
+          />
+        )}
       </div>
     );
   }

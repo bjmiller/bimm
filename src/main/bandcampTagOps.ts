@@ -2,7 +2,7 @@ import PQueue from 'p-queue';
 import log from 'electron-log/main.js';
 import { BandcampAlbumDetails, BandcampSearch, type Album } from '../types';
 import { messageFrom } from './lib/messageFrom';
-import { readAlbumMetadata, writeAlbumMetadata } from './backendOps';
+import { readAlbumMetadata, updateAlbumMetadata } from './backendOps';
 
 const BANDCAMP_QUEUE_CONCURRENCY = 1;
 const BANDCAMP_QUEUE_INTERVAL_CAP = 3;
@@ -16,12 +16,10 @@ const bandcampQueue = new PQueue({
 });
 
 const writeBandcampTags = async (albumPath: string, bandcampTags: string[]) => {
-  const metadata = await readAlbumMetadata(albumPath);
-
-  await writeAlbumMetadata(albumPath, {
+  await updateAlbumMetadata(albumPath, (metadata) => ({
     ...metadata,
     bandcampTags
-  });
+  }));
 };
 
 const BANDCAMP_SEARCH_URL = 'https://bandcamp.com/api/bcsearch_public_api/1/autocomplete_elastic';
@@ -95,13 +93,19 @@ export const fetchBandcampTags = (album: Album): Promise<string[]> => {
   return bandcampQueue.add(() => fetchBandcampTagsUnqueued(album));
 };
 
-const fetchBandcampTagsUnqueued = async (album: Album): Promise<string[]> => {
+// Downloads tags without persisting them — the caller decides how to write.
+// Used when another writer may be persisting different keys to the same
+// bimm.json concurrently, so the fetch and the write can be coordinated.
+export const downloadBandcampTagsQueued = (album: Album): Promise<string[]> => {
+  return bandcampQueue.add(() => downloadBandcampTagsUnqueued(album));
+};
+
+const downloadBandcampTagsUnqueued = async (album: Album): Promise<string[]> => {
   const albumLabel = album.filename;
   log.log(`[bandcamp] fetching tags (${albumLabel})`);
-  let tags: string[];
 
   try {
-    tags = await fetchBandcampTagsForAlbum(album);
+    return await fetchBandcampTagsForAlbum(album);
   } catch (error) {
     log.error(`[bandcamp] fetch failed (${albumLabel})`, {
       album: album.filename,
@@ -109,6 +113,11 @@ const fetchBandcampTagsUnqueued = async (album: Album): Promise<string[]> => {
     });
     return [];
   }
+};
+
+const fetchBandcampTagsUnqueued = async (album: Album): Promise<string[]> => {
+  const albumLabel = album.filename;
+  const tags = await downloadBandcampTagsUnqueued(album);
 
   try {
     await writeBandcampTags(album.fullpath, tags);

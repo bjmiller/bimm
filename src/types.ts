@@ -228,7 +228,7 @@ export const BandcampAlbumGeoname = z.object({
 });
 export type BandcampAlbumGeoname = z.infer<typeof BandcampAlbumGeoname>;
 
-export const BandcampAlbumStreamingUrl = z.record(z.string(), z.string()).optional();
+export const BandcampAlbumStreamingUrl = z.record(z.string(), z.string()).nullish();
 export type BandcampAlbumStreamingUrl = z.infer<typeof BandcampAlbumStreamingUrl>;
 
 export const BandcampAlbumTag = z.object({
@@ -282,7 +282,7 @@ export const BandcampAlbumDetails = z.object({
   featured_track_id: z.number(),
   tracks: z.array(BandcampAlbumTrack),
   credits: z.string(),
-  about: z.string(),
+  about: z.string().nullable(),
   album_id: z.number(),
   album_title: z.string(),
   release_date: z.number(),

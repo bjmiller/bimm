@@ -19,6 +19,7 @@ import { Album, CompressedFile, type InboxEntry } from '../../types';
 import { useInboxFocusManagement } from '../lib/focusManagement';
 import { RowFocus } from '../lib/rowFocus';
 import { type Row as AlbumListRow } from './albumList';
+import { patchAlbumInQueryCaches } from '../lib/patchAlbumInQueryCaches';
 import { TagEditor } from './tagEditor';
 dayjs.extend(duration);
 
@@ -287,17 +288,31 @@ export const Inbox = (props: InboxProps) => {
   );
   const populateBandcampTagsMutation = useMutation(trpc.web.getBandcampTags.mutationOptions());
 
+  const patchCaches = useCallback(
+    (updatedAlbum: Album) => {
+      patchAlbumInQueryCaches(
+        queryClient,
+        { albums: trpc.file.getAlbums.pathKey(), inbox: trpc.file.getInbox.pathKey() },
+        updatedAlbum
+      );
+    },
+    [queryClient, trpc]
+  );
+
   const fetchFocusedAlbumGenres = useCallback(() => {
     if (focusedAlbum == null) {
       return;
     }
 
     void (async () => {
-      await genreQuery.refetch();
-      // The fetch persisted to bimm.json — refresh so the row shows the new genres.
-      await inboxQuery.refetch();
+      // The fetch persists to bimm.json and returns the re-read album — swap
+      // it into the cache so the row re-renders with the new genres right away.
+      const { data: updatedAlbum } = await genreQuery.refetch();
+      if (updatedAlbum != null) {
+        patchCaches(updatedAlbum);
+      }
     })();
-  }, [focusedAlbum, genreQuery, inboxQuery]);
+  }, [focusedAlbum, genreQuery, patchCaches]);
 
   const fetchFocusedBandcampTags = useCallback(() => {
     if (focusedAlbum == null) {
@@ -305,11 +320,12 @@ export const Inbox = (props: InboxProps) => {
     }
 
     void (async () => {
-      await bandcampTagQuery.refetch();
-      // The fetch persisted to bimm.json — refresh so the row shows the new tags.
-      await inboxQuery.refetch();
+      const { data: updatedAlbum } = await bandcampTagQuery.refetch();
+      if (updatedAlbum != null) {
+        patchCaches(updatedAlbum);
+      }
     })();
-  }, [focusedAlbum, bandcampTagQuery, inboxQuery]);
+  }, [focusedAlbum, bandcampTagQuery, patchCaches]);
 
   const fetchAllAlbumGenres = useCallback(() => {
     if (populateAlbumGenresMutation.isPending) {

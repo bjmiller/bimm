@@ -4,7 +4,8 @@ import { useHotkeys } from '@tanstack/react-hotkeys';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTRPC } from '../lib/trpc';
 import { addTags, removeTag } from '../../lib/tags';
-import { type Album, type AlbumMetadata, type InboxEntry } from '../../types';
+import { patchAlbumInQueryCaches } from '../lib/patchAlbumInQueryCaches';
+import { type Album, type AlbumMetadata } from '../../types';
 import { TagField } from './tagField';
 
 interface TagEditorProps {
@@ -60,15 +61,13 @@ export const TagEditor = ({ album, onClose, onSaved }: TagEditorProps) => {
   const writeAlbumTagsMutation = useMutation(trpc.file.writeAlbumTags.mutationOptions());
   const { isPending } = writeAlbumTagsMutation;
 
-  // Swap the saved album into any cached album/inbox list so the row
-  // re-renders with the new tags immediately, without waiting on a refetch.
-  const patchAlbumInQueryCaches = useCallback(
+  const patchCaches = useCallback(
     (updatedAlbum: Album) => {
-      const patchEntries = <T extends { fullpath: string }>(entries: T[] | undefined): T[] | undefined =>
-        entries?.map((entry) => (entry.fullpath === updatedAlbum.fullpath ? { ...entry, ...updatedAlbum } : entry));
-
-      queryClient.setQueriesData<Album[]>({ queryKey: trpc.file.getAlbums.pathKey() }, patchEntries);
-      queryClient.setQueriesData<InboxEntry[]>({ queryKey: trpc.file.getInbox.pathKey() }, patchEntries);
+      patchAlbumInQueryCaches(
+        queryClient,
+        { albums: trpc.file.getAlbums.pathKey(), inbox: trpc.file.getInbox.pathKey() },
+        updatedAlbum
+      );
     },
     [queryClient, trpc]
   );
@@ -105,18 +104,21 @@ export const TagEditor = ({ album, onClose, onSaved }: TagEditorProps) => {
     }
 
     setError(undefined);
+    // Dismiss immediately — the save continues in the background and the
+    // caches are patched with the result when it lands.
+    onClose();
 
     void (async () => {
       try {
         const updatedAlbum = await writeAlbumTagsMutation.mutateAsync({ albumPath: album.fullpath, tags });
-        patchAlbumInQueryCaches(updatedAlbum);
+        patchCaches(updatedAlbum);
         await onSaved?.();
-        onClose();
       } catch (saveError) {
-        setError(saveError instanceof Error ? saveError.message : 'Unable to save tags.');
+        // eslint-disable-next-line no-console
+        console.error(saveError instanceof Error ? saveError.message : 'Unable to save tags.');
       }
     })();
-  }, [album.fullpath, isPending, onClose, onSaved, patchAlbumInQueryCaches, tags, writeAlbumTagsMutation]);
+  }, [album.fullpath, isPending, onClose, onSaved, patchCaches, tags, writeAlbumTagsMutation]);
 
   // Keeps Tab inside the modal. This also shadows the app-wide Tab/Shift+Tab
   // pane cycling: the dialog listener sits deeper in the DOM and stops

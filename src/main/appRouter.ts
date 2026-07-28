@@ -112,14 +112,20 @@ export const appRouter = t.router({
     })
   },
   web: {
+    // Fetches and persists genres, then returns the re-read album so the
+    // renderer can swap it into its cache and re-render the row immediately.
     obtainSpotifyGenres: t.procedure.input(Album).query(async ({ input }) => {
-      return await fetchChosicGenres(input);
+      await fetchChosicGenres(input);
+      return await readAlbumFromDir(input.fullpath);
     }),
     getSpotifyGenres: t.procedure.input(z.array(Album)).mutation(async ({ input }) => {
       return await fetchMissingChosicGenres(input);
     }),
+    // Fetches and persists tags, then returns the re-read album (same
+    // immediate-update contract as obtainSpotifyGenres).
     obtainBandcampTags: t.procedure.input(Album).query(async ({ input }) => {
-      return await fetchBandcampTags(input);
+      await fetchBandcampTags(input);
+      return await readAlbumFromDir(input.fullpath);
     }),
     getBandcampTags: t.procedure.input(z.array(Album)).mutation(async ({ input }) => {
       return await fetchMissingBandcampTags(input);

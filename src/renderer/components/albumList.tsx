@@ -1,6 +1,6 @@
 import React, { type Dispatch, useCallback, useMemo, useState, type RefObject, type SetStateAction } from 'react';
 import { useTRPC } from '../lib/trpc';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   type SortingState,
   createColumnHelper,
@@ -24,6 +24,7 @@ import { useAlbumListFocusManagement } from '../lib/focusManagement';
 import { RowFocus } from '../lib/rowFocus';
 import { AlbumSearch } from './albumSearch';
 import { searchFilter } from '../lib/searchFilter';
+import { patchAlbumInQueryCaches } from '../lib/patchAlbumInQueryCaches';
 import { useHotkeys } from '@tanstack/react-hotkeys';
 import { TagEditor } from './tagEditor';
 dayjs.extend(duration);
@@ -107,6 +108,7 @@ export const AlbumList = (props: AlbumListProps) => {
     onSelectedRowsChange
   } = props;
   const trpc = useTRPC();
+  const queryClient = useQueryClient();
   // Shares the single getAlbums query for this directory (see bimm.tsx), so
   // the table updates in place when the fresh revalidation lands.
   const albumsQuery = useQuery(trpc.file.getAlbums.queryOptions(selected));
@@ -269,17 +271,31 @@ export const AlbumList = (props: AlbumListProps) => {
   );
   const populateBandcampTagsMutation = useMutation(trpc.web.getBandcampTags.mutationOptions());
 
+  const patchCaches = useCallback(
+    (updatedAlbum: Album) => {
+      patchAlbumInQueryCaches(
+        queryClient,
+        { albums: trpc.file.getAlbums.pathKey(), inbox: trpc.file.getInbox.pathKey() },
+        updatedAlbum
+      );
+    },
+    [queryClient, trpc]
+  );
+
   const fetchFocusedAlbumGenres = useCallback(() => {
     if (focusedAlbum == null) {
       return;
     }
 
     void (async () => {
-      await genreQuery.refetch();
-      // The fetch persisted to bimm.json — refresh so the row shows the new genres.
-      await albumsQuery.refetch();
+      // The fetch persists to bimm.json and returns the re-read album — swap
+      // it into the cache so the row re-renders with the new genres right away.
+      const { data: updatedAlbum } = await genreQuery.refetch();
+      if (updatedAlbum != null) {
+        patchCaches(updatedAlbum);
+      }
     })();
-  }, [albumsQuery, focusedAlbum, genreQuery]);
+  }, [focusedAlbum, genreQuery, patchCaches]);
 
   const fetchFocusedBandcampTags = useCallback(() => {
     if (focusedAlbum == null) {
@@ -287,11 +303,12 @@ export const AlbumList = (props: AlbumListProps) => {
     }
 
     void (async () => {
-      await bandcampTagQuery.refetch();
-      // The fetch persisted to bimm.json — refresh so the row shows the new tags.
-      await albumsQuery.refetch();
+      const { data: updatedAlbum } = await bandcampTagQuery.refetch();
+      if (updatedAlbum != null) {
+        patchCaches(updatedAlbum);
+      }
     })();
-  }, [albumsQuery, focusedAlbum, bandcampTagQuery]);
+  }, [focusedAlbum, bandcampTagQuery, patchCaches]);
 
   const fetchAllAlbumGenres = useCallback(() => {
     if (populateAlbumGenresMutation.isPending) {

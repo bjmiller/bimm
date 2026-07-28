@@ -203,28 +203,28 @@ export const AlbumList = (props: AlbumListProps) => {
 
   const playSelectedAlbums = useCallback(() => {
     if (selectedRows.size === 0) {
-      const focusedRowId = table.getFocusedRowId();
-      if (focusedRowId != null) {
-        const focusedRow = table.getRow(focusedRowId);
-        if (focusedRow != null) {
-          // eslint-disable-next-line no-console
-          console.log(focusedRow.original.filename);
-          void (async () => {
-            try {
-              await addAndPlayAlbumsMutation.mutateAsync([focusedRow.original]);
-            } catch (e) {
-              // eslint-disable-next-line no-console
-              console.error(e);
-            }
-          })();
-        }
+      const focusedRow = table.getFocusedRow();
+      if (focusedRow != null) {
+        // eslint-disable-next-line no-console
+        console.log(focusedRow.original.filename);
+        void (async () => {
+          try {
+            await addAndPlayAlbumsMutation.mutateAsync([focusedRow.original]);
+          } catch (e) {
+            // eslint-disable-next-line no-console
+            console.error(e);
+          }
+        })();
       }
       return;
     }
 
+    // Look rows up via rowsById rather than table.getRow, which throws on a
+    // missing id — a selected row may have vanished since it was selected.
+    const rowsById = table.getRowModel().rowsById;
     const sortedAlbums = Array.from(selectedRows.entries())
-      .map(([id, timestamp]) => ({ id, row: table.getRow(id), timestamp }))
-      .filter((item) => item.row != null)
+      .map(([id, timestamp]) => ({ row: rowsById[id], timestamp }))
+      .filter((item): item is { row: TanStackRow<Album>; timestamp: number } => item.row != null)
       .sort((a, b) => a.timestamp - b.timestamp)
       .map((item) => item.row.original);
 
@@ -240,7 +240,9 @@ export const AlbumList = (props: AlbumListProps) => {
     })();
   }, [addAndPlayAlbumsMutation, selectedRows, table]);
 
-  const focusedAlbum = rowFocus == null ? undefined : table.getRow(rowFocus)?.original;
+  // Use getFocusedRow (a rowsById lookup) rather than table.getRow, which
+  // throws when the focused id isn't in the current row model.
+  const focusedAlbum = table.getFocusedRow()?.original;
   const genreLookupInput = useMemo(
     () => (focusedAlbum == null ? EMPTY_CHOSIC_LOOKUP_ALBUM : getChosicLookupAlbum(focusedAlbum)),
     [focusedAlbum]

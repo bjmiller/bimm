@@ -168,12 +168,7 @@ export const Inbox = (props: InboxProps) => {
   );
 
   const extractOrPlayFocusedEntry = useCallback(() => {
-    const focusedRowId = table.getFocusedRowId();
-    if (focusedRowId == null) {
-      return;
-    }
-
-    const focusedRow = table.getRow(focusedRowId);
+    const focusedRow = table.getFocusedRow();
     if (focusedRow == null) {
       return;
     }
@@ -201,12 +196,7 @@ export const Inbox = (props: InboxProps) => {
   }, [addAndPlayAlbumsMutation, extractAndPlay, table]);
 
   const moveFocusedAlbumToTarget = useCallback(() => {
-    const focusedRowId = table.getFocusedRowId();
-    if (focusedRowId == null) {
-      return;
-    }
-
-    const focusedRow = table.getRow(focusedRowId);
+    const focusedRow = table.getFocusedRow();
     if (focusedRow == null) {
       return;
     }
@@ -220,6 +210,10 @@ export const Inbox = (props: InboxProps) => {
     void (async () => {
       try {
         await moveAlbumToTargetMutation.mutateAsync(entry);
+        // The focused row is about to vanish from the inbox — clear row focus
+        // before the refetch re-renders, or the render below will resolve a
+        // stale focus id against a row model that no longer contains it.
+        setRowFocus(undefined);
         await inboxQuery.refetch();
         // The album moved into a music directory — refresh any cached album
         // list so it appears without waiting for that query to go stale.
@@ -232,12 +226,7 @@ export const Inbox = (props: InboxProps) => {
   }, [inboxQuery, moveAlbumToTargetMutation, queryClient, table, trpc]);
 
   const trashFocusedEntry = useCallback(() => {
-    const focusedRowId = table.getFocusedRowId();
-    if (focusedRowId == null) {
-      return;
-    }
-
-    const focusedRow = table.getRow(focusedRowId);
+    const focusedRow = table.getFocusedRow();
     if (focusedRow == null) {
       return;
     }
@@ -247,6 +236,8 @@ export const Inbox = (props: InboxProps) => {
     void (async () => {
       try {
         await trashItemMutation.mutateAsync(entry.fullpath);
+        // Same stale-focus hazard as F6: the row disappears on refetch.
+        setRowFocus(undefined);
         await inboxQuery.refetch();
       } catch (e) {
         // eslint-disable-next-line no-console
@@ -255,7 +246,10 @@ export const Inbox = (props: InboxProps) => {
     })();
   }, [inboxQuery, table, trashItemMutation]);
 
-  const focusedEntry = rowFocus == null ? undefined : table.getRow(rowFocus)?.original;
+  // Use getFocusedRow (a rowsById lookup) rather than table.getRow, which
+  // throws when the focused id isn't in the current row model — a stale focus
+  // id would otherwise crash the render.
+  const focusedEntry = table.getFocusedRow()?.original;
   const focusedAlbum = focusedEntry != null && isAlbum(focusedEntry) ? focusedEntry : undefined;
 
   const genreLookupInput = useMemo(

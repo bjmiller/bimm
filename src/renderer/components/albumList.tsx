@@ -81,6 +81,14 @@ const getChosicLookupAlbum = (album: Album): Album => ({
   tracks: album.tracks?.slice(0, 1)
 });
 
+const EMPTY_BANDCAMP_LOOKUP_ALBUM: Album = { filename: '', fullpath: '', tracks: [] };
+
+const getBandcampLookupAlbum = (album: Album): Album => ({
+  filename: album.filename,
+  fullpath: album.fullpath,
+  tracks: album.tracks?.slice(0, 1)
+});
+
 const isMac = (globalThis.navigator?.platform ?? '').toLowerCase().includes('mac');
 type AlbumListRowFocusState = string | undefined;
 
@@ -246,6 +254,21 @@ export const AlbumList = (props: AlbumListProps) => {
   );
   const populateAlbumGenresMutation = useMutation(trpc.web.getSpotifyGenres.mutationOptions());
 
+  const bandcampLookupInput = useMemo(
+    () => (focusedAlbum == null ? EMPTY_BANDCAMP_LOOKUP_ALBUM : getBandcampLookupAlbum(focusedAlbum)),
+    [focusedAlbum]
+  );
+  const bandcampTagQuery = useQuery(
+    trpc.web.obtainBandcampTags.queryOptions(bandcampLookupInput, {
+      enabled: false,
+      refetchOnMount: false,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      retry: false
+    })
+  );
+  const populateBandcampTagsMutation = useMutation(trpc.web.getBandcampTags.mutationOptions());
+
   const fetchFocusedAlbumGenres = useCallback(() => {
     if (focusedAlbum == null) {
       return;
@@ -253,6 +276,14 @@ export const AlbumList = (props: AlbumListProps) => {
 
     void genreQuery.refetch();
   }, [focusedAlbum, genreQuery]);
+
+  const fetchFocusedBandcampTags = useCallback(() => {
+    if (focusedAlbum == null) {
+      return;
+    }
+
+    void bandcampTagQuery.refetch();
+  }, [focusedAlbum, bandcampTagQuery]);
 
   const fetchAllAlbumGenres = useCallback(() => {
     if (populateAlbumGenresMutation.isPending) {
@@ -273,6 +304,26 @@ export const AlbumList = (props: AlbumListProps) => {
       }
     })();
   }, [albumsQuery, populateAlbumGenresMutation, table]);
+
+  const fetchAllBandcampTags = useCallback(() => {
+    if (populateBandcampTagsMutation.isPending) {
+      return;
+    }
+
+    const albums = table.getRowModel().rows.map((row) => getBandcampLookupAlbum(row.original));
+
+    if (albums.length === 0) {
+      return;
+    }
+
+    void (async () => {
+      try {
+        await populateBandcampTagsMutation.mutateAsync(albums);
+      } finally {
+        await albumsQuery.refetch();
+      }
+    })();
+  }, [albumsQuery, populateBandcampTagsMutation, table]);
 
   // The album being retagged is captured on open rather than read live: focusing
   // the modal's input moves focus out of the album list pane, which clears row
@@ -299,6 +350,8 @@ export const AlbumList = (props: AlbumListProps) => {
     { hotkey: 'Shift+Enter', callback: playSelectedAlbums },
     { hotkey: 'Mod+/', callback: fetchFocusedAlbumGenres },
     { hotkey: 'Control+Alt+Meta+/', callback: fetchAllAlbumGenres },
+    { hotkey: 'Mod+\\', callback: fetchFocusedBandcampTags },
+    { hotkey: 'Control+Alt+Meta+\\', callback: fetchAllBandcampTags },
     // Disabled while open so the shortcut can't re-seed the modal from a stale
     // focused row underneath it.
     { hotkey: 'Mod+G', callback: openTagEditor, options: { enabled: tagEditorAlbum == null } }

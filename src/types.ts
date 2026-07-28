@@ -210,7 +210,7 @@ export const BandcampAlbumBand = z.object({
   band_id: z.number(),
   name: z.string(),
   image_id: z.number(),
-  bio: z.string(),
+  bio: z.string().nullable(),
   location: z.string()
 });
 export type BandcampAlbumBand = z.infer<typeof BandcampAlbumBand>;

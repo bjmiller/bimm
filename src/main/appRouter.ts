@@ -12,6 +12,7 @@ import {
   writeSettings
 } from './backendOps';
 import { fetchChosicGenres, fetchMissingChosicGenres } from './chosicGenreOps';
+import { fetchBandcampTags, fetchMissingBandcampTags } from './bandcampTagOps';
 import { z } from 'zod';
 import { addAndPlayAlbums } from './vlcControlOps';
 import { extractAndIngestAlbum } from './archiveOps';
@@ -66,6 +67,12 @@ export const appRouter = t.router({
     }),
     getSpotifyGenres: t.procedure.input(z.array(Album)).mutation(async ({ input }) => {
       return await fetchMissingChosicGenres(input);
+    }),
+    obtainBandcampTags: t.procedure.input(Album).query(async ({ input }) => {
+      return await fetchBandcampTags(input);
+    }),
+    getBandcampTags: t.procedure.input(z.array(Album)).mutation(async ({ input }) => {
+      return await fetchMissingBandcampTags(input);
     })
   },
   vlc: {

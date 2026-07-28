@@ -85,6 +85,15 @@ export const Album = AlbumBase.extend(AlbumMetadata.shape);
 
 export type Album = z.infer<typeof Album>;
 
+// Payload for editing an album's tags. Only the metadata fields travel over
+// the wire: the main process merges them into whatever `bimm.json` already
+// holds, so unknown/future keys are never dropped by a tag edit.
+export const AlbumTagUpdate = z.object({
+  albumPath: z.string().min(1),
+  tags: AlbumMetadata
+});
+export type AlbumTagUpdate = z.infer<typeof AlbumTagUpdate>;
+
 export const CompressedFile = z
   .object({
     filename: z.string(),

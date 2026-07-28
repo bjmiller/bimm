@@ -1,5 +1,5 @@
 import { initTRPC } from '@trpc/server';
-import { Album, AppSettings, CompressedFile } from '../types';
+import { Album, AlbumTagUpdate, AppSettings, CompressedFile } from '../types';
 import superjson from 'superjson';
 import {
   moveAlbumToTarget,
@@ -8,6 +8,7 @@ import {
   readOrCreateSettings,
   refreshAlbumCache,
   trashItem,
+  writeAlbumTags,
   writeSettings
 } from './backendOps';
 import { fetchChosicGenres, fetchMissingChosicGenres } from './chosicGenreOps';
@@ -44,6 +45,11 @@ export const appRouter = t.router({
     }),
     moveAlbumToTarget: t.procedure.input(Album).mutation(async ({ input }) => {
       return await moveAlbumToTarget(input);
+    }),
+    // Persists edited tags to the album's bimm.json without disturbing the
+    // directory's modified time. Returns the re-read album.
+    writeAlbumTags: t.procedure.input(AlbumTagUpdate).mutation(async ({ input }) => {
+      return await writeAlbumTags(input);
     }),
     trashItem: t.procedure.input(z.string()).mutation(async ({ input }) => {
       return await trashItem(input);

@@ -25,6 +25,7 @@ import { RowFocus } from '../lib/rowFocus';
 import { AlbumSearch } from './albumSearch';
 import { searchFilter } from '../lib/searchFilter';
 import { useHotkey } from '@tanstack/react-hotkeys';
+import { TagEditor } from './tagEditor';
 dayjs.extend(duration);
 
 interface AlbumListProps {
@@ -278,6 +279,31 @@ export const AlbumList = (props: AlbumListProps) => {
   useHotkey('Mod+/', fetchFocusedAlbumGenres);
   useHotkey('Control+Alt+Meta+/', fetchAlbumGenres);
 
+  // The album being retagged is captured on open rather than read live: focusing
+  // the modal's input moves focus out of the album list pane, which clears row
+  // focus (see `clearAlbumListRowFocus`).
+  const [tagEditorAlbum, setTagEditorAlbum] = useState<Album | undefined>(undefined);
+
+  const openTagEditor = useCallback(() => {
+    if (focusedAlbum == null) {
+      return;
+    }
+
+    setTagEditorAlbum(focusedAlbum);
+  }, [focusedAlbum]);
+
+  const closeTagEditor = useCallback(() => {
+    setTagEditorAlbum(undefined);
+  }, []);
+
+  const refetchAlbumsAfterSave = useCallback(async () => {
+    await albumsQuery.refetch();
+  }, [albumsQuery]);
+
+  // Disabled while open so the shortcut can't re-seed the modal from a stale
+  // focused row underneath it.
+  useHotkey('Mod+G', openTagEditor, { enabled: tagEditorAlbum == null });
+
   if (albumsQuery.isLoading) {
     return (
       <div className="album-list flex flex-row">
@@ -323,6 +349,14 @@ export const AlbumList = (props: AlbumListProps) => {
           </table>
         </div>
         <AlbumSearch paneRef={searchPaneRef} table={table} />
+        {tagEditorAlbum != null && (
+          <TagEditor
+            album={tagEditorAlbum}
+            onClose={closeTagEditor}
+            onSaved={refetchAlbumsAfterSave}
+            key={tagEditorAlbum.fullpath}
+          />
+        )}
       </div>
     );
   }

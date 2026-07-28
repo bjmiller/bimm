@@ -9,10 +9,19 @@ import { app, shell } from 'electron';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
 dayjs.extend(duration);
-import { AppSettings, AlbumMetadata, type Album, type CompressedFile, type InboxEntry, type Track } from '../types';
+import {
+  AppSettings,
+  AlbumMetadata,
+  type Album,
+  type AlbumTagUpdate,
+  type CompressedFile,
+  type InboxEntry,
+  type Track
+} from '../types';
 import { moveToTarget, resolveNewAlbumTargetDir } from './archiveOps';
 import { invalidateAlbumInCaches } from './albumCache';
 import { messageFrom } from './lib/messageFrom';
+import { normalizeTagList } from '../lib/tags';
 
 log.transports.file.level = false;
 
@@ -20,6 +29,10 @@ const APP_PATH = `${os.homedir()}${sep}.bimm`;
 const CONFIG_PATH = `${APP_PATH}${sep}.bimmrc.json`;
 const BIMM_METADATA_FILENAME = 'bimm.json';
 const SPACES = 2;
+
+// The metadata keys the tag editor owns. Derived from the schema so adding a
+// tag kind to `AlbumMetadata` can't silently skip persistence here.
+const ALBUM_TAG_FIELDS = Object.keys(AlbumMetadata.shape) as Array<keyof AlbumMetadata>;
 
 const isNodeError = (item: unknown): item is NodeJS.ErrnoException => {
   return item != null && typeof item === 'object' && Object.hasOwn(item, 'code') && Object.hasOwn(item, 'errno');
@@ -168,6 +181,38 @@ export const writeAlbumMetadata = async (albumPath: string, metadata: AlbumMetad
   await fs.writeFile(metadataPath, JSON.stringify(validation.data, null, SPACES));
   await fs.utimes(albumPath, directoryStats.atime, directoryStats.mtime);
   await invalidateAlbumInCaches(albumPath);
+};
+
+// Persists edited tags for a single album. Reads the existing metadata first so
+// keys the editor doesn't manage are preserved, and drops empty tag arrays so
+// bimm.json never accumulates `"manualTags": []` noise. Writing goes through
+// `writeAlbumMetadata`, which restores the album directory's atime/mtime after
+// the write — the album list's Modified column must not jump because someone
+// retagged. Returns the re-read album so the renderer can update in place.
+export const writeAlbumTags = async (update: AlbumTagUpdate): Promise<Album> => {
+  const { albumPath, tags } = update;
+  const existingMetadata = await readAlbumMetadata(albumPath);
+  const mergedMetadata: AlbumMetadata = { ...existingMetadata };
+
+  for (const field of ALBUM_TAG_FIELDS) {
+    const editedTags = tags[field];
+
+    if (editedTags == null) {
+      continue;
+    }
+
+    const normalized = normalizeTagList(editedTags);
+
+    if (normalized.length === 0) {
+      delete mergedMetadata[field];
+    } else {
+      mergedMetadata[field] = normalized;
+    }
+  }
+
+  await writeAlbumMetadata(albumPath, mergedMetadata);
+
+  return await readAlbumFromDir(albumPath);
 };
 
 const readTracks = async (dir: string) => {

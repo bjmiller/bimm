@@ -24,7 +24,7 @@ import { useAlbumListFocusManagement } from '../lib/focusManagement';
 import { RowFocus } from '../lib/rowFocus';
 import { AlbumSearch } from './albumSearch';
 import { searchFilter } from '../lib/searchFilter';
-import { useHotkey } from '@tanstack/react-hotkeys';
+import { useHotkeys } from '@tanstack/react-hotkeys';
 import { TagEditor } from './tagEditor';
 dayjs.extend(duration);
 
@@ -191,7 +191,7 @@ export const AlbumList = (props: AlbumListProps) => {
 
   const addAndPlayAlbumsMutation = useMutation(trpc.vlc.addAndPlayAlbums.mutationOptions());
 
-  const handleShiftEnter = useCallback(() => {
+  const playSelectedAlbums = useCallback(() => {
     if (selectedRows.size === 0) {
       const focusedRowId = table.getFocusedRowId();
       if (focusedRowId != null) {
@@ -230,8 +230,6 @@ export const AlbumList = (props: AlbumListProps) => {
     })();
   }, [addAndPlayAlbumsMutation, selectedRows, table]);
 
-  useHotkey('Shift+Enter', handleShiftEnter);
-
   const focusedAlbum = rowFocus == null ? undefined : table.getRow(rowFocus)?.original;
   const genreLookupInput = useMemo(
     () => (focusedAlbum == null ? EMPTY_CHOSIC_LOOKUP_ALBUM : getChosicLookupAlbum(focusedAlbum)),
@@ -256,7 +254,7 @@ export const AlbumList = (props: AlbumListProps) => {
     void genreQuery.refetch();
   }, [focusedAlbum, genreQuery]);
 
-  const fetchAlbumGenres = useCallback(() => {
+  const fetchAllAlbumGenres = useCallback(() => {
     if (populateAlbumGenresMutation.isPending) {
       return;
     }
@@ -275,9 +273,6 @@ export const AlbumList = (props: AlbumListProps) => {
       }
     })();
   }, [albumsQuery, populateAlbumGenresMutation, table]);
-
-  useHotkey('Mod+/', fetchFocusedAlbumGenres);
-  useHotkey('Control+Alt+Meta+/', fetchAlbumGenres);
 
   // The album being retagged is captured on open rather than read live: focusing
   // the modal's input moves focus out of the album list pane, which clears row
@@ -300,9 +295,14 @@ export const AlbumList = (props: AlbumListProps) => {
     await albumsQuery.refetch();
   }, [albumsQuery]);
 
-  // Disabled while open so the shortcut can't re-seed the modal from a stale
-  // focused row underneath it.
-  useHotkey('Mod+G', openTagEditor, { enabled: tagEditorAlbum == null });
+  useHotkeys([
+    { hotkey: 'Shift+Enter', callback: playSelectedAlbums },
+    { hotkey: 'Mod+/', callback: fetchFocusedAlbumGenres },
+    { hotkey: 'Control+Alt+Meta+/', callback: fetchAllAlbumGenres },
+    // Disabled while open so the shortcut can't re-seed the modal from a stale
+    // focused row underneath it.
+    { hotkey: 'Mod+G', callback: openTagEditor, options: { enabled: tagEditorAlbum == null } }
+  ]);
 
   if (albumsQuery.isLoading) {
     return (

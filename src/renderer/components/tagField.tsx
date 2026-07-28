@@ -73,7 +73,7 @@ export const TagField = ({ label, onAddTags, onRemoveTag, placeholder, tags }: T
       const input = pasteEvent.currentTarget;
       const selectionStart = input.selectionStart ?? input.value.length;
       const selectionEnd = input.selectionEnd ?? selectionStart;
-      const combined = `${input.value.slice(0, selectionStart)}${pasted}${input.value.slice(selectionEnd)}`;
+      const combined = `${input.value.slice(0, selectionStart)}${pasted.replaceAll('"', '')}${input.value.slice(selectionEnd)}`;
 
       onAddTags(splitTagInput(combined));
       setPending('');

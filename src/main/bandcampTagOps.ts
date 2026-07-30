@@ -36,7 +36,7 @@ const fetchBandcampTagsForAlbum = async (album: Album) => {
     const { artist, albumTitle } = firstTrack;
     const search_text = `${artist} - ${albumTitle}`;
 
-    const body = JSON.stringify({ full_page: 'false', search_filter: '', search_text });
+    const body = JSON.stringify({ full_page: 'false', search_filter: 'a', search_text });
     const searchResponse = await fetch(BANDCAMP_SEARCH_URL, { method: 'POST', body });
 
     let bandcampTags: string[] = [];
@@ -137,13 +137,13 @@ const fetchBandcampTagsUnqueued = async (album: Album): Promise<string[]> => {
   return tags;
 };
 
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
 export const fetchMissingBandcampTags = async (albums: Album[]) => {
   let skipped = 0;
   let processed = 0;
 
   log.log('[bandcamp] starting visible album batch fetch', { total: albums.length });
-
-  const tasks: Promise<void>[] = [];
 
   for (const album of albums) {
     // eslint-disable-next-line no-await-in-loop
@@ -154,11 +154,16 @@ export const fetchMissingBandcampTags = async (albums: Album[]) => {
       continue;
     }
 
-    processed += 1;
-    tasks.push(bandcampQueue.add(() => fetchBandcampTagsUnqueued(album).then(() => undefined)));
-  }
+    // Leave 5 seconds between each album to respect Bandcamp's rate limits.
+    if (processed > 0) {
+      // eslint-disable-next-line no-await-in-loop, no-magic-numbers
+      await sleep(5000);
+    }
 
-  await Promise.all(tasks);
+    processed += 1;
+    // eslint-disable-next-line no-await-in-loop
+    await bandcampQueue.add(() => fetchBandcampTagsUnqueued(album));
+  }
 
   log.log('[bandcamp] completed visible album batch fetch', {
     total: albums.length,

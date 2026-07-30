@@ -186,9 +186,9 @@ export const BandcampSearchGenre = z.object({});
 export type BandcampSearchGenre = z.infer<typeof BandcampSearchGenre>;
 
 export const BandcampSearchTag = z.object({
-  matches: z.array(z.any()),
-  count: z.number(),
-  time_ms: z.number()
+  matches: z.array(z.any()).optional(),
+  count: z.number().optional(),
+  time_ms: z.number().optional()
 });
 export type BandcampSearchTag = z.infer<typeof BandcampSearchTag>;
 
@@ -209,9 +209,9 @@ export type BandcampSearch = z.infer<typeof BandcampSearch>;
 export const BandcampAlbumBand = z.object({
   band_id: z.number(),
   name: z.string(),
-  image_id: z.number(),
+  image_id: z.number().nullable(),
   bio: z.string().nullable(),
-  location: z.string()
+  location: z.string().nullable()
 });
 export type BandcampAlbumBand = z.infer<typeof BandcampAlbumBand>;
 
@@ -256,10 +256,10 @@ export const BandcampAlbumTrack = z.object({
   is_streamable: z.boolean(),
   has_lyrics: z.boolean(),
   is_set_price: z.boolean(),
-  price: z.number(),
+  price: z.number().nullable(),
   has_digital_download: z.boolean(),
   merch_ids: z.union([z.array(z.string()), z.array(z.number()), z.null()]),
-  merch_sold_out: z.union([z.boolean(), z.null()]),
+  merch_sold_out: z.boolean().nullable(),
   currency: z.string(),
   require_email: z.boolean(),
   is_purchasable: z.boolean(),
@@ -279,9 +279,9 @@ export const BandcampAlbumDetails = z.object({
   band: BandcampAlbumBand,
   tralbum_artist: z.string(),
   package_art: z.array(z.number()),
-  featured_track_id: z.number(),
+  featured_track_id: z.number().nullable(),
   tracks: z.array(BandcampAlbumTrack),
-  credits: z.string(),
+  credits: z.string().nullable(),
   about: z.string().nullable(),
   album_id: z.number(),
   album_title: z.string(),
@@ -292,14 +292,14 @@ export const BandcampAlbumDetails = z.object({
   tags: z.union([z.array(BandcampAlbumTag), z.null()]),
   currency: z.string(),
   is_set_price: z.boolean(),
-  price: z.number(),
+  price: z.number().nullable(),
   require_email: z.boolean(),
   label: z.union([z.string(), z.null()]),
   label_id: z.union([z.number(), z.null()]),
   package_details_lite: z.record(z.string(), BandcampAlbumPackageDetailsLite),
   has_digital_download: z.boolean(),
   num_downloadable_tracks: z.number(),
-  merch_sold_out: z.boolean(),
+  merch_sold_out: z.boolean().nullable(),
   streaming_limit: z.number()
 });
 export type BandcampAlbumDetails = z.infer<typeof BandcampAlbumDetails>;

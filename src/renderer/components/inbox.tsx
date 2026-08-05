@@ -99,6 +99,7 @@ export const Inbox = (props: InboxProps) => {
   const [sorting, setSorting] = useState<SortingState>([{ id: 'modified', desc: true }]);
   const [rowFocus, setRowFocus] = useState<InboxRowFocusState>(undefined);
   const [extractingPath, setExtractingPath] = useState<string | null>(null);
+  const [movingPath, setMovingPath] = useState<string | null>(null);
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
@@ -207,6 +208,7 @@ export const Inbox = (props: InboxProps) => {
       return;
     }
 
+    setMovingPath(entry.fullpath);
     void (async () => {
       try {
         await moveAlbumToTargetMutation.mutateAsync(entry);
@@ -221,6 +223,8 @@ export const Inbox = (props: InboxProps) => {
       } catch (e) {
         // eslint-disable-next-line no-console
         console.error(e);
+      } finally {
+        setMovingPath(null);
       }
     })();
   }, [inboxQuery, moveAlbumToTargetMutation, queryClient, table, trpc]);
@@ -456,6 +460,7 @@ export const Inbox = (props: InboxProps) => {
                     row={row as AlbumListRow<Album>}
                     onClick={rowClickHandler(row)}
                     viewContext="inbox"
+                    disabled={movingPath === row.original.fullpath}
                   />
                 )
               )}

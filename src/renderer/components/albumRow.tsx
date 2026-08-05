@@ -17,6 +17,7 @@ export interface AlbumRowProps<TData extends Album> {
   row: Row<TData>;
   onClick?: MouseEventHandler<HTMLTableRowElement>;
   viewContext: 'inbox' | 'album-list';
+  disabled?: boolean;
 }
 
 const flexById = <TData,>(row: Row<TData>, id: string) => {
@@ -35,8 +36,13 @@ export const AlbumRow = <TData extends Album>(props: AlbumRowProps<TData>) => {
     <tr
       key={row.id}
       data-row-id={row.id}
-      className={clsx('cursor-default', selected, row.getIsFocused() && 'inset-ring-1 inset-ring-orange-400')}
-      onClick={props.onClick}
+      className={clsx(
+        'cursor-default',
+        selected,
+        row.getIsFocused() && 'inset-ring-1 inset-ring-orange-400',
+        props.disabled && 'opacity-50'
+      )}
+      onClick={props.disabled ? undefined : props.onClick}
     >
       <Cell flexible>
         {viewContext === 'inbox' ? <FolderIcon className="inline h-3 align-text-top text-amber-400" /> : null}{' '}

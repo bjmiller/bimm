@@ -17,6 +17,13 @@ export const addAndPlayAlbums = async (albums: Album[]) => {
   await playPlaylist();
 };
 
+export const enqueueAlbums = async (albums: Album[]) => {
+  for (const album of albums) {
+    // eslint-disable-next-line no-await-in-loop
+    await enqueueAlbum(album);
+  }
+};
+
 export const ensureVlcRunning = async () => {
   if (await isVlcWebServerReachable()) {
     return;

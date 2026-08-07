@@ -240,6 +240,47 @@ export const AlbumList = (props: AlbumListProps) => {
     })();
   }, [addAndPlayAlbumsMutation, selectedRows, table]);
 
+  const addAlbumsToQueueMutation = useMutation(trpc.vlc.addAlbumToQueue.mutationOptions());
+
+  const enqueueSelectedAlbums = useCallback(() => {
+    if (selectedRows.size === 0) {
+      const focusedRow = table.getFocusedRow();
+      if (focusedRow != null) {
+        // eslint-disable-next-line no-console
+        console.log(focusedRow.original.filename);
+        void (async () => {
+          try {
+            await addAlbumsToQueueMutation.mutateAsync([focusedRow.original]);
+          } catch (e) {
+            // eslint-disable-next-line no-console
+            console.error(e);
+          }
+        })();
+      }
+      return;
+    }
+
+    // Look rows up via rowsById rather than table.getRow, which throws on a
+    // missing id — a selected row may have vanished since it was selected.
+    const rowsById = table.getRowModel().rowsById;
+    const sortedAlbums = Array.from(selectedRows.entries())
+      .map(([id, timestamp]) => ({ row: rowsById[id], timestamp }))
+      .filter((item): item is { row: TanStackRow<Album>; timestamp: number } => item.row != null)
+      .sort((a, b) => a.timestamp - b.timestamp)
+      .map((item) => item.row.original);
+
+    // eslint-disable-next-line no-console
+    console.log(sortedAlbums);
+    void (async () => {
+      try {
+        await addAlbumsToQueueMutation.mutateAsync(sortedAlbums);
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error(e);
+      }
+    })();
+  }, [addAlbumsToQueueMutation, selectedRows, table]);
+
   // Use getFocusedRow (a rowsById lookup) rather than table.getRow, which
   // throws when the focused id isn't in the current row model.
   const focusedAlbum = table.getFocusedRow()?.original;
@@ -375,6 +416,7 @@ export const AlbumList = (props: AlbumListProps) => {
 
   useHotkeys([
     { hotkey: 'Shift+Enter', callback: playSelectedAlbums },
+    { hotkey: 'Shift+Q', callback: enqueueSelectedAlbums },
     { hotkey: 'Mod+/', callback: fetchFocusedAlbumGenres },
     { hotkey: 'Control+Alt+Meta+/', callback: fetchAllAlbumGenres },
     { hotkey: 'Mod+\\', callback: fetchFocusedBandcampTags },

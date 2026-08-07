@@ -17,7 +17,7 @@ import {
 import { downloadChosicGenresQueued, fetchChosicGenres, fetchMissingChosicGenres } from './chosicGenreOps';
 import { downloadBandcampTagsQueued, fetchBandcampTags, fetchMissingBandcampTags } from './bandcampTagOps';
 import { z } from 'zod';
-import { addAndPlayAlbums } from './vlcControlOps';
+import { addAndPlayAlbums, enqueueAlbums } from './vlcControlOps';
 import { extractAndIngestAlbum } from './archiveOps';
 import { messageFrom } from './lib/messageFrom';
 
@@ -134,6 +134,9 @@ export const appRouter = t.router({
   vlc: {
     addAndPlayAlbums: t.procedure.input(z.array(Album)).mutation(async ({ input }) => {
       return await addAndPlayAlbums(input);
+    }),
+    addAlbumToQueue: t.procedure.input(z.array(Album)).mutation(async ({ input }) => {
+      return await enqueueAlbums(input);
     })
   }
 });

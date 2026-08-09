@@ -1,12 +1,12 @@
 import { type CompressedFile } from '../../types';
-import { flexRender, type Row as TanStackRow } from '@tanstack/react-table';
+import { flexRender, type RowData } from '@tanstack/react-table';
 import type { MouseEventHandler } from 'react';
 import clsx from 'clsx';
 import { Cell } from './cell';
-import type { RowFocusRow } from '../lib/rowFocus';
+import type { FocusableRow } from '../lib/tableTypes';
 import { FileArchiveIcon } from '../../icons/fileArchive';
 
-type Row<TData> = TanStackRow<TData> & RowFocusRow;
+type Row<TData extends RowData> = FocusableRow<TData>;
 
 export interface CompressedFileRowProps {
   row: Row<CompressedFile>;
@@ -17,6 +17,7 @@ export interface CompressedFileRowProps {
 const flexById = (row: Row<CompressedFile>, id: string) => {
   const cell = row.getVisibleCells().find((c) => c.column.id === id);
   if (cell == null) return null;
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- the structural row type loosens cell rendering to `any`.
   return flexRender(cell.column.columnDef.cell, cell.getContext()) ?? null;
 };
 

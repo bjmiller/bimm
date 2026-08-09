@@ -1,5 +1,5 @@
 import { useHotkeys } from '@tanstack/react-hotkeys';
-import type { Row as TanStackRow, Table as TanStackTable } from '@tanstack/react-table';
+import type { RowData } from '@tanstack/react-table';
 import {
   useCallback,
   useEffect,
@@ -13,10 +13,31 @@ import {
   type SetStateAction
 } from 'react';
 import { type Album, type InboxEntry } from '../../types';
-import type { RowFocusInstance, RowFocusRow, RowFocusState } from './rowFocus';
+import type { RowFocusInstance, RowFocusState } from './rowFocus';
+import type { FocusableRow, SelectableFocusableRow } from './tableTypes';
 
-type AlbumListRow<TData> = TanStackRow<TData> & RowFocusRow;
-type AlbumListTable<TData> = TanStackTable<TData> & RowFocusInstance<TData>;
+type AlbumListRow<TData extends RowData> = SelectableFocusableRow<TData>;
+
+/**
+ * The structural subset of a focus-enabled table that the focus-management
+ * hooks rely on. Typed structurally (rather than by feature set) so the same
+ * hooks work for both the album list and inbox tables, which register
+ * different feature sets.
+ */
+interface FocusableTableBase<TData extends RowData> extends Omit<RowFocusInstance<TData>, 'getFocusedRow'> {
+  getFocusedRow: () => FocusableRow<TData> | undefined;
+  getRowModel: () => { rows: Array<FocusableRow<TData>> };
+}
+
+/**
+ * The album-list table additionally supports row selection, which the
+ * album-list focus hook uses for the select/toggle-focused-row shortcuts.
+ */
+interface AlbumListTable<TData extends RowData> extends Omit<RowFocusInstance<TData>, 'getFocusedRow'> {
+  getFocusedRow: () => AlbumListRow<TData> | undefined;
+  getRowModel: () => { rows: Array<AlbumListRow<TData>> };
+  resetRowSelection: (defaultState?: boolean) => void;
+}
 
 export type Pane =
   | 'albumList'
@@ -448,7 +469,7 @@ export function useAlbumListFocusManagement(options: UseAlbumListFocusManagement
   const lastHandledFocusRequest = useRef(0);
 
   const moveFocus = (direction: 'up' | 'down', distance: number) => {
-    const rows = table.getRowModel().rows as AlbumListRow<Album>[];
+    const rows = table.getRowModel().rows;
 
     if (!rows.length) {
       return;
@@ -523,7 +544,7 @@ export function useAlbumListFocusManagement(options: UseAlbumListFocusManagement
       return;
     }
 
-    const rows = table.getRowModel().rows as AlbumListRow<Album>[];
+    const rows = table.getRowModel().rows;
 
     if (!rows.length) {
       return;
@@ -567,7 +588,7 @@ export interface UseInboxFocusManagementOptions {
   listRef: RefObject<HTMLDivElement | null>;
   rowFocus: RowFocusState;
   setRowFocus: Dispatch<SetStateAction<RowFocusState>>;
-  table: AlbumListTable<InboxEntry>;
+  table: FocusableTableBase<InboxEntry>;
 }
 
 export interface InboxFocusManagement {
@@ -580,7 +601,7 @@ export function useInboxFocusManagement(options: UseInboxFocusManagementOptions)
   const lastHandledFocusRequest = useRef(0);
 
   const moveFocus = (direction: 'up' | 'down', distance: number) => {
-    const rows = table.getRowModel().rows as AlbumListRow<InboxEntry>[];
+    const rows = table.getRowModel().rows;
 
     if (!rows.length) {
       return;
@@ -632,7 +653,7 @@ export function useInboxFocusManagement(options: UseInboxFocusManagementOptions)
       return;
     }
 
-    const rows = table.getRowModel().rows as AlbumListRow<InboxEntry>[];
+    const rows = table.getRowModel().rows;
 
     if (!rows.length) {
       return;

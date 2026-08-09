@@ -1,6 +1,7 @@
-import { type Table } from '@tanstack/react-table';
+import { type ReactTable } from '@tanstack/react-table';
 import { useCallback, useMemo, useRef, useState, type RefObject } from 'react';
 import { type Album } from '../../types';
+import { type AlbumListFeatures } from './albumList';
 import { useHotkey } from '@tanstack/react-hotkeys';
 import { parse, type SearchParserResult } from 'search-query-parser';
 import { searchParserResultValidator } from '../lib/searchParserResultValidator';
@@ -12,7 +13,7 @@ import { applySearchShortcuts } from '../lib/searchShortcuts';
 
 interface AlbumSearchProps {
   paneRef: RefObject<HTMLDivElement | null>;
-  table: Table<Album>;
+  table: ReactTable<AlbumListFeatures, Album>;
 }
 
 const parseQuery = (query: string) => {
@@ -60,7 +61,7 @@ export const AlbumSearch = ({ table, paneRef }: AlbumSearchProps) => {
   useHotkey('Enter', enterHandler, { ignoreInputs: false, target: searchRef });
   useHotkey('Escape', escapeHandler, { ignoreInputs: false });
 
-  const parsedGlobalFilter = searchParserResultValidator.safeParse(table.getState().globalFilter);
+  const parsedGlobalFilter = searchParserResultValidator.safeParse(table.state.globalFilter);
   const globalFilter = parsedGlobalFilter.success ? parsedGlobalFilter.data : {};
   const typedFilter = useMemo(() => parseQuery(typedQuery), [typedQuery]);
 

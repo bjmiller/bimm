@@ -1,13 +1,7 @@
 import { useCallback, useMemo, useState, type RefObject } from 'react';
 import { useTRPC } from '../lib/trpc';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  type SortingState,
-  createColumnHelper,
-  useReactTable,
-  getCoreRowModel,
-  getSortedRowModel
-} from '@tanstack/react-table';
+import { type SortingState, createColumnHelper, useTable } from '@tanstack/react-table';
 import { useHotkeys } from '@tanstack/react-hotkeys';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
@@ -17,8 +11,7 @@ import { ChevronUpIcon } from '../../icons/chevronUp';
 import { ChevronDownIcon } from '../../icons/chevronDown';
 import { Album, CompressedFile, type InboxEntry } from '../../types';
 import { useInboxFocusManagement } from '../lib/focusManagement';
-import { RowFocus } from '../lib/rowFocus';
-import { type Row as AlbumListRow } from './albumList';
+import { sortableFeatures, type FocusableRow, type SortableFeatures } from '../lib/tableTypes';
 import { patchAlbumInQueryCaches } from '../lib/patchAlbumInQueryCaches';
 import { TagEditor } from './tagEditor';
 dayjs.extend(duration);
@@ -30,7 +23,9 @@ interface InboxProps {
   paneRef: RefObject<HTMLDivElement | null>;
 }
 
-const columnHelper = createColumnHelper<InboxEntry>();
+export type InboxFeatures = SortableFeatures;
+
+const columnHelper = createColumnHelper<InboxFeatures, InboxEntry>();
 
 const isAlbum = (entry: InboxEntry): entry is Album => Album.safeParse(entry).success;
 const isCompressedFile = (entry: InboxEntry) => CompressedFile.safeParse(entry).success;
@@ -40,7 +35,7 @@ const calculateRunningtime = (entry: InboxEntry) =>
 
 const calculateNumberOfTracks = (entry: InboxEntry) => (isAlbum(entry) ? entry.tracks.length : null);
 
-const columns = [
+const columns = columnHelper.columns([
   columnHelper.accessor('filename', {
     id: 'album',
     header: 'Album'
@@ -66,7 +61,7 @@ const columns = [
       return time ? dayjs(time).format('YYYY-MM-DD HH:mm') : '';
     }
   })
-];
+]);
 
 const getRowId = (row: InboxEntry) => row.fullpath;
 
@@ -101,9 +96,8 @@ export const Inbox = (props: InboxProps) => {
   const [extractingPath, setExtractingPath] = useState<string | null>(null);
   const [movingPath, setMovingPath] = useState<string | null>(null);
 
-  // eslint-disable-next-line react-hooks/incompatible-library
-  const table = useReactTable({
-    _features: [RowFocus],
+  const table = useTable({
+    features: sortableFeatures,
     data,
     columns,
     getRowId,
@@ -111,9 +105,7 @@ export const Inbox = (props: InboxProps) => {
     onSortingChange: setSorting,
     onRowFocusChange: setRowFocus,
     sortDescFirst: true,
-    enableSortingRemoval: false,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel()
+    enableSortingRemoval: false
   });
 
   const { onPaneMouseDownCapture } = useInboxFocusManagement({
@@ -156,7 +148,7 @@ export const Inbox = (props: InboxProps) => {
   );
 
   const rowClickHandler = useCallback(
-    (row: AlbumListRow<InboxEntry>) => (clickEvent: React.MouseEvent<HTMLTableRowElement>) => {
+    (row: FocusableRow<InboxEntry>) => (clickEvent: React.MouseEvent<HTMLTableRowElement>) => {
       clickEvent.stopPropagation();
       const entry = row.original;
       if (clickEvent.shiftKey && isCompressedFile(entry)) {
@@ -417,7 +409,7 @@ export const Inbox = (props: InboxProps) => {
 
   if (inboxQuery.isSuccess) {
     const headers = table.getFlatHeaders();
-    const rows = table.getRowModel().rows as AlbumListRow<InboxEntry>[];
+    const rows = table.getRowModel().rows as FocusableRow<InboxEntry>[];
 
     return (
       <div className="inbox flex h-lvh flex-auto flex-col">
@@ -457,7 +449,7 @@ export const Inbox = (props: InboxProps) => {
                 ) : (
                   <AlbumRow
                     key={row.id}
-                    row={row as AlbumListRow<Album>}
+                    row={row as FocusableRow<Album>}
                     onClick={rowClickHandler(row)}
                     viewContext="inbox"
                     disabled={movingPath === row.original.fullpath}

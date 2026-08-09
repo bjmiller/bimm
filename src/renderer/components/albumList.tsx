@@ -4,11 +4,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   type SortingState,
   createColumnHelper,
-  useReactTable,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getSortedRowModel,
-  getExpandedRowModel,
+  useTable,
+  type RowData,
   type RowSelectionState,
   type Row as TanStackRow,
   type Updater
@@ -21,7 +18,7 @@ import { ChevronUpIcon } from '../../icons/chevronUp';
 import { ChevronDownIcon } from '../../icons/chevronDown';
 import { type Album } from '../../types';
 import { useAlbumListFocusManagement } from '../lib/focusManagement';
-import { RowFocus } from '../lib/rowFocus';
+import { searchableFeatures, type SearchableFeatures, type SelectableFocusableRow } from '../lib/tableTypes';
 import { AlbumSearch } from './albumSearch';
 import { searchFilter } from '../lib/searchFilter';
 import { patchAlbumInQueryCaches } from '../lib/patchAlbumInQueryCaches';
@@ -39,14 +36,16 @@ interface AlbumListProps {
   onSelectedRowsChange?: Dispatch<SetStateAction<Map<string, number>>>;
 }
 
-const columnHelper = createColumnHelper<Album>();
+export type AlbumListFeatures = SearchableFeatures;
+
+const columnHelper = createColumnHelper<AlbumListFeatures, Album>();
 
 export const calculateRunningtime = (album: Album) =>
   album.tracks?.reduce((memo, track) => memo + (track?.duration ?? 0), 0) ?? null;
 
 const calculateNumberOfTracks = (album: Album) => album.tracks?.length ?? 0;
 
-const columns = [
+const columns = columnHelper.columns([
   columnHelper.accessor('filename', {
     id: 'album',
     header: 'Album'
@@ -71,7 +70,7 @@ const columns = [
       return time ? dayjs(time).format('YYYY-MM-DD HH:mm') : '';
     }
   })
-];
+]);
 
 const getRowId = (row: Album) => row.filename;
 const EMPTY_CHOSIC_LOOKUP_ALBUM: Album = { filename: '', fullpath: '', tracks: [] };
@@ -93,9 +92,7 @@ const getBandcampLookupAlbum = (album: Album): Album => ({
 const isMac = (globalThis.navigator?.platform ?? '').toLowerCase().includes('mac');
 type AlbumListRowFocusState = string | undefined;
 
-export type Row<TData> = TanStackRow<TData> & {
-  setFocused: (value?: boolean) => void;
-};
+export type Row<TData extends RowData> = SelectableFocusableRow<TData>;
 
 export const AlbumList = (props: AlbumListProps) => {
   const {
@@ -123,14 +120,16 @@ export const AlbumList = (props: AlbumListProps) => {
   const [globalFilter, setGlobalFilter] = useState<SearchParserResult>({ offsets: [], exclude: {} });
 
   const rowSelection = useMemo<RowSelectionState>(
-    () => Object.fromEntries(Array.from(selectedRows.keys()).map((id) => [id, true])),
+    () => Object.fromEntries(Array.from(selectedRows.keys()).map((id) => [id, true as const])),
     [selectedRows]
   );
 
   const handleRowSelectionChange = useCallback(
     (updater: Updater<RowSelectionState>) => {
       setSelectedRows((prev) => {
-        const prevSelection = Object.fromEntries(Array.from(prev.keys()).map((id) => [id, true]));
+        const prevSelection: RowSelectionState = Object.fromEntries(
+          Array.from(prev.keys()).map((id) => [id, true as const])
+        );
         const nextSelection = typeof updater === 'function' ? updater(prevSelection) : updater;
         const now = Date.now();
         const next = new Map(prev);
@@ -153,9 +152,8 @@ export const AlbumList = (props: AlbumListProps) => {
     [setSelectedRows]
   );
 
-  // eslint-disable-next-line react-hooks/incompatible-library
-  const table = useReactTable({
-    _features: [RowFocus],
+  const table = useTable({
+    features: searchableFeatures,
     data,
     columns,
     getRowId,
@@ -166,11 +164,7 @@ export const AlbumList = (props: AlbumListProps) => {
     onGlobalFilterChange: setGlobalFilter,
     globalFilterFn: searchFilter,
     sortDescFirst: true,
-    enableSortingRemoval: false,
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getExpandedRowModel: getExpandedRowModel()
+    enableSortingRemoval: false
   });
 
   const { onPaneMouseDownCapture } = useAlbumListFocusManagement({
@@ -224,7 +218,7 @@ export const AlbumList = (props: AlbumListProps) => {
     const rowsById = table.getRowModel().rowsById;
     const sortedAlbums = Array.from(selectedRows.entries())
       .map(([id, timestamp]) => ({ row: rowsById[id], timestamp }))
-      .filter((item): item is { row: TanStackRow<Album>; timestamp: number } => item.row != null)
+      .filter((item): item is { row: TanStackRow<AlbumListFeatures, Album>; timestamp: number } => item.row != null)
       .sort((a, b) => a.timestamp - b.timestamp)
       .map((item) => item.row.original);
 
@@ -265,7 +259,7 @@ export const AlbumList = (props: AlbumListProps) => {
     const rowsById = table.getRowModel().rowsById;
     const sortedAlbums = Array.from(selectedRows.entries())
       .map(([id, timestamp]) => ({ row: rowsById[id], timestamp }))
-      .filter((item): item is { row: TanStackRow<Album>; timestamp: number } => item.row != null)
+      .filter((item): item is { row: TanStackRow<AlbumListFeatures, Album>; timestamp: number } => item.row != null)
       .sort((a, b) => a.timestamp - b.timestamp)
       .map((item) => item.row.original);
 

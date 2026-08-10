@@ -18,7 +18,7 @@ import { ChevronUpIcon } from '../../icons/chevronUp';
 import { ChevronDownIcon } from '../../icons/chevronDown';
 import { type Album } from '../../types';
 import { useAlbumListFocusManagement } from '../lib/focusManagement';
-import { searchableFeatures, type SearchableFeatures, type SelectableFocusableRow } from '../lib/tableTypes';
+import { focusableFeatures, type FocusableFeatures } from '../lib/tableTypes';
 import { AlbumSearch } from './albumSearch';
 import { searchFilter } from '../lib/searchFilter';
 import { patchAlbumInQueryCaches } from '../lib/patchAlbumInQueryCaches';
@@ -36,7 +36,7 @@ interface AlbumListProps {
   onSelectedRowsChange?: Dispatch<SetStateAction<Map<string, number>>>;
 }
 
-export type AlbumListFeatures = SearchableFeatures;
+export type AlbumListFeatures = FocusableFeatures;
 
 const columnHelper = createColumnHelper<AlbumListFeatures, Album>();
 
@@ -92,7 +92,7 @@ const getBandcampLookupAlbum = (album: Album): Album => ({
 const isMac = (globalThis.navigator?.platform ?? '').toLowerCase().includes('mac');
 type AlbumListRowFocusState = string | undefined;
 
-export type Row<TData extends RowData> = SelectableFocusableRow<TData>;
+export type Row<TData extends RowData> = TanStackRow<FocusableFeatures, TData>;
 
 export const AlbumList = (props: AlbumListProps) => {
   const {
@@ -153,7 +153,7 @@ export const AlbumList = (props: AlbumListProps) => {
   );
 
   const table = useTable({
-    features: searchableFeatures,
+    features: focusableFeatures,
     data,
     columns,
     getRowId,
@@ -445,6 +445,7 @@ export const AlbumList = (props: AlbumListProps) => {
               <tr>
                 {headers.map((header) => (
                   <th
+                    key={header.id}
                     className="bold sticky top-0 z-10 cursor-pointer border-r border-gray-400 bg-[#dfdfdf] p-0.75 px-1.5 pt-1 text-left select-none last:border-r-0"
                     onClick={header.column.getToggleSortingHandler()}
                   >
@@ -459,7 +460,7 @@ export const AlbumList = (props: AlbumListProps) => {
             </thead>
             <tbody>
               {rows.map((row) => (
-                <AlbumRow row={row} onClick={rowClickHandler(row)} viewContext="album-list" />
+                <AlbumRow key={row.id} row={row} onClick={rowClickHandler(row)} viewContext="album-list" />
               ))}
             </tbody>
           </table>

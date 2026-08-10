@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState, type RefObject } from 'react';
 import { useTRPC } from '../lib/trpc';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { type SortingState, createColumnHelper, useTable } from '@tanstack/react-table';
+import { type SortingState, createColumnHelper, useTable, type Row as TanStackRow } from '@tanstack/react-table';
 import { useHotkeys } from '@tanstack/react-hotkeys';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
@@ -11,7 +11,7 @@ import { ChevronUpIcon } from '../../icons/chevronUp';
 import { ChevronDownIcon } from '../../icons/chevronDown';
 import { Album, CompressedFile, type InboxEntry } from '../../types';
 import { useInboxFocusManagement } from '../lib/focusManagement';
-import { sortableFeatures, type FocusableRow, type SortableFeatures } from '../lib/tableTypes';
+import { focusableFeatures, type FocusableFeatures } from '../lib/tableTypes';
 import { patchAlbumInQueryCaches } from '../lib/patchAlbumInQueryCaches';
 import { TagEditor } from './tagEditor';
 dayjs.extend(duration);
@@ -23,12 +23,23 @@ interface InboxProps {
   paneRef: RefObject<HTMLDivElement | null>;
 }
 
-export type InboxFeatures = SortableFeatures;
+export type InboxFeatures = FocusableFeatures;
+
+type Row<TData extends InboxEntry> = TanStackRow<InboxFeatures, TData>;
 
 const columnHelper = createColumnHelper<InboxFeatures, InboxEntry>();
 
 const isAlbum = (entry: InboxEntry): entry is Album => Album.safeParse(entry).success;
 const isCompressedFile = (entry: InboxEntry) => CompressedFile.safeParse(entry).success;
+
+/**
+ * Narrows an inbox row to an album row for rendering. `Row` is invariant in
+ * `TData`, so `Row<Album>` on its own is not assignable to `Row<InboxEntry>`
+ * and can't be used as the predicate type directly; the intersection is
+ * assignable to both, which keeps the predicate legal and lets the narrowed
+ * row flow into `AlbumRow` without a cast.
+ */
+const isAlbumRow = (row: Row<InboxEntry>): row is Row<InboxEntry> & Row<Album> => !isCompressedFile(row.original);
 
 const calculateRunningtime = (entry: InboxEntry) =>
   isAlbum(entry) ? entry.tracks.reduce((memo, track) => memo + (track.duration ?? 0), 0) : null;
@@ -97,7 +108,7 @@ export const Inbox = (props: InboxProps) => {
   const [movingPath, setMovingPath] = useState<string | null>(null);
 
   const table = useTable({
-    features: sortableFeatures,
+    features: focusableFeatures,
     data,
     columns,
     getRowId,
@@ -148,7 +159,7 @@ export const Inbox = (props: InboxProps) => {
   );
 
   const rowClickHandler = useCallback(
-    (row: FocusableRow<InboxEntry>) => (clickEvent: React.MouseEvent<HTMLTableRowElement>) => {
+    (row: Row<InboxEntry>) => (clickEvent: React.MouseEvent<HTMLTableRowElement>) => {
       clickEvent.stopPropagation();
       const entry = row.original;
       if (clickEvent.shiftKey && isCompressedFile(entry)) {
@@ -409,7 +420,7 @@ export const Inbox = (props: InboxProps) => {
 
   if (inboxQuery.isSuccess) {
     const headers = table.getFlatHeaders();
-    const rows = table.getRowModel().rows as FocusableRow<InboxEntry>[];
+    const rows = table.getRowModel().rows;
 
     return (
       <div className="inbox flex h-lvh flex-auto flex-col">
@@ -439,20 +450,20 @@ export const Inbox = (props: InboxProps) => {
             </thead>
             <tbody>
               {rows.map((row) =>
-                isCompressedFile(row.original) ? (
+                isAlbumRow(row) ? (
+                  <AlbumRow
+                    key={row.id}
+                    row={row}
+                    onClick={rowClickHandler(row)}
+                    viewContext="inbox"
+                    disabled={movingPath === row.original.fullpath}
+                  />
+                ) : (
                   <CompressedFileRow
                     key={row.id}
                     row={row}
                     onClick={rowClickHandler(row)}
                     disabled={extractingPath === row.original.fullpath}
-                  />
-                ) : (
-                  <AlbumRow
-                    key={row.id}
-                    row={row as FocusableRow<Album>}
-                    onClick={rowClickHandler(row)}
-                    viewContext="inbox"
-                    disabled={movingPath === row.original.fullpath}
                   />
                 )
               )}

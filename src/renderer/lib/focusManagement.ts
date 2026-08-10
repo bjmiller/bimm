@@ -1,5 +1,5 @@
 import { useHotkeys } from '@tanstack/react-hotkeys';
-import type { RowData } from '@tanstack/react-table';
+import type { RowData, Table as TanStackTable } from '@tanstack/react-table';
 import {
   useCallback,
   useEffect,
@@ -13,31 +13,11 @@ import {
   type SetStateAction
 } from 'react';
 import { type Album, type InboxEntry } from '../../types';
-import type { RowFocusInstance, RowFocusState } from './rowFocus';
-import type { FocusableRow, SelectableFocusableRow } from './tableTypes';
+import type { RowFocusState } from './rowFocus';
+import type { FocusableFeatures } from './tableTypes';
 
-type AlbumListRow<TData extends RowData> = SelectableFocusableRow<TData>;
-
-/**
- * The structural subset of a focus-enabled table that the focus-management
- * hooks rely on. Typed structurally (rather than by feature set) so the same
- * hooks work for both the album list and inbox tables, which register
- * different feature sets.
- */
-interface FocusableTableBase<TData extends RowData> extends Omit<RowFocusInstance<TData>, 'getFocusedRow'> {
-  getFocusedRow: () => FocusableRow<TData> | undefined;
-  getRowModel: () => { rows: Array<FocusableRow<TData>> };
-}
-
-/**
- * The album-list table additionally supports row selection, which the
- * album-list focus hook uses for the select/toggle-focused-row shortcuts.
- */
-interface AlbumListTable<TData extends RowData> extends Omit<RowFocusInstance<TData>, 'getFocusedRow'> {
-  getFocusedRow: () => AlbumListRow<TData> | undefined;
-  getRowModel: () => { rows: Array<AlbumListRow<TData>> };
-  resetRowSelection: (defaultState?: boolean) => void;
-}
+/** Both tables register the same feature set, so one table type serves both. */
+type FocusTable<TData extends RowData> = TanStackTable<FocusableFeatures, TData>;
 
 export type Pane =
   | 'albumList'
@@ -448,24 +428,31 @@ export function useSidePanelItemInteractions(options: UseSidePanelItemInteractio
   };
 }
 
-export interface UseAlbumListFocusManagementOptions {
+export interface UseTableFocusManagementOptions<TData extends RowData> {
   clearRowFocus: boolean;
-  data: Album[];
+  data: TData[];
   enabled: boolean;
   focusFirstRowRequest: number;
   listRef: RefObject<HTMLDivElement | null>;
   rowFocus: RowFocusState;
   setRowFocus: Dispatch<SetStateAction<RowFocusState>>;
-  table: AlbumListTable<Album>;
+  table: FocusTable<TData>;
 }
 
-export interface AlbumListFocusManagement {
+export interface TableFocusManagement {
   onPaneMouseDownCapture: () => void;
 }
 
-export function useAlbumListFocusManagement(options: UseAlbumListFocusManagementOptions): AlbumListFocusManagement {
+/**
+ * Row-focus keyboard navigation and focus bookkeeping shared by the album list
+ * and inbox tables: arrow/page movement, clearing row focus when the pane loses
+ * focus, focusing the first row on request, and keeping the focused row
+ * scrolled into view.
+ */
+function useTableFocusManagement<TData extends RowData>(
+  options: UseTableFocusManagementOptions<TData>
+): TableFocusManagement {
   const { clearRowFocus, data, enabled, focusFirstRowRequest, listRef, rowFocus, setRowFocus, table } = options;
-  const focusTable = table;
   const lastHandledFocusRequest = useRef(0);
 
   const moveFocus = (direction: 'up' | 'down', distance: number) => {
@@ -475,139 +462,7 @@ export function useAlbumListFocusManagement(options: UseAlbumListFocusManagement
       return;
     }
 
-    const focusedRowId = focusTable.getFocusedRowId();
-    const focusedIndex = focusedRowId == null ? -1 : rows.findIndex((row) => row.id === focusedRowId);
-
-    if (direction === 'down' && distance === 1 && focusedIndex < 0) {
-      rows[0]?.setFocused(true);
-      return;
-    }
-
-    const nextIndex =
-      direction === 'down'
-        ? focusedIndex < 0
-          ? Math.min(distance - 1, rows.length - 1)
-          : Math.min(focusedIndex + distance, rows.length - 1)
-        : focusedIndex < 0
-          ? rows.length - 1
-          : Math.max(focusedIndex - distance, 0);
-
-    rows[nextIndex]?.setFocused(true);
-  };
-
-  const selectFocusedRow = () => {
-    const focusedRow = focusTable.getFocusedRow();
-
-    if (focusedRow == null) {
-      return;
-    }
-
-    table.resetRowSelection(true);
-    focusedRow.toggleSelected(true);
-  };
-
-  const toggleFocusedRowSelection = () => {
-    const focusedRow = focusTable.getFocusedRow();
-
-    if (focusedRow == null) {
-      return;
-    }
-
-    focusedRow.toggleSelected();
-  };
-
-  useHotkeys(
-    [
-      { hotkey: 'ArrowDown', callback: () => moveFocus('down', 1) },
-      { hotkey: 'ArrowUp', callback: () => moveFocus('up', 1) },
-      { hotkey: 'PageDown', callback: () => moveFocus('down', getPageJumpSize(listRef.current)) },
-      { hotkey: 'PageUp', callback: () => moveFocus('up', getPageJumpSize(listRef.current)) },
-      { hotkey: 'Space', callback: selectFocusedRow },
-      { hotkey: 'Shift+Space', callback: toggleFocusedRowSelection }
-    ],
-    {
-      enabled,
-      target: listRef
-    }
-  );
-
-  useEffect(() => {
-    if (!clearRowFocus || rowFocus == null) {
-      return;
-    }
-
-    setRowFocus(undefined);
-  }, [clearRowFocus, rowFocus, setRowFocus]);
-
-  useEffect(() => {
-    if (focusFirstRowRequest === 0 || focusFirstRowRequest === lastHandledFocusRequest.current || !enabled) {
-      return;
-    }
-
-    const rows = table.getRowModel().rows;
-
-    if (!rows.length) {
-      return;
-    }
-
-    rows[0]?.setFocused(true);
-    lastHandledFocusRequest.current = focusFirstRowRequest;
-  }, [enabled, focusFirstRowRequest, table]);
-
-  useEffect(() => {
-    const focusedRowId = focusTable.getFocusedRowId();
-
-    if (focusedRowId == null) {
-      return;
-    }
-
-    if (focusTable.getFocusedRow() == null) {
-      focusTable.resetRowFocus(true);
-      return;
-    }
-
-    const focusedRowElement = Array.from(
-      listRef.current?.querySelectorAll<HTMLTableRowElement>('tbody tr[data-row-id]') ?? []
-    ).find((rowElement) => rowElement.dataset.rowId === focusedRowId);
-
-    focusedRowElement?.scrollIntoView({ block: 'nearest' });
-  }, [data, focusTable, listRef, rowFocus]);
-
-  const onPaneMouseDownCapture = useCallback(() => {
-    listRef.current?.focus({ preventScroll: true });
-  }, [listRef]);
-
-  return { onPaneMouseDownCapture };
-}
-
-export interface UseInboxFocusManagementOptions {
-  clearRowFocus: boolean;
-  data: InboxEntry[];
-  enabled: boolean;
-  focusFirstRowRequest: number;
-  listRef: RefObject<HTMLDivElement | null>;
-  rowFocus: RowFocusState;
-  setRowFocus: Dispatch<SetStateAction<RowFocusState>>;
-  table: FocusableTableBase<InboxEntry>;
-}
-
-export interface InboxFocusManagement {
-  onPaneMouseDownCapture: () => void;
-}
-
-export function useInboxFocusManagement(options: UseInboxFocusManagementOptions): InboxFocusManagement {
-  const { clearRowFocus, data, enabled, focusFirstRowRequest, listRef, rowFocus, setRowFocus, table } = options;
-  const focusTable = table;
-  const lastHandledFocusRequest = useRef(0);
-
-  const moveFocus = (direction: 'up' | 'down', distance: number) => {
-    const rows = table.getRowModel().rows;
-
-    if (!rows.length) {
-      return;
-    }
-
-    const focusedRowId = focusTable.getFocusedRowId();
+    const focusedRowId = table.getFocusedRowId();
     const focusedIndex = focusedRowId == null ? -1 : rows.findIndex((row) => row.id === focusedRowId);
 
     if (direction === 'down' && distance === 1 && focusedIndex < 0) {
@@ -664,14 +519,14 @@ export function useInboxFocusManagement(options: UseInboxFocusManagementOptions)
   }, [enabled, focusFirstRowRequest, table]);
 
   useEffect(() => {
-    const focusedRowId = focusTable.getFocusedRowId();
+    const focusedRowId = table.getFocusedRowId();
 
     if (focusedRowId == null) {
       return;
     }
 
-    if (focusTable.getFocusedRow() == null) {
-      focusTable.resetRowFocus(true);
+    if (table.getFocusedRow() == null) {
+      table.resetRowFocus(true);
       return;
     }
 
@@ -680,11 +535,58 @@ export function useInboxFocusManagement(options: UseInboxFocusManagementOptions)
     ).find((rowElement) => rowElement.dataset.rowId === focusedRowId);
 
     focusedRowElement?.scrollIntoView({ block: 'nearest' });
-  }, [data, focusTable, listRef, rowFocus]);
+  }, [data, table, listRef, rowFocus]);
 
   const onPaneMouseDownCapture = useCallback(() => {
     listRef.current?.focus({ preventScroll: true });
   }, [listRef]);
 
   return { onPaneMouseDownCapture };
+}
+
+/**
+ * The shared table focus management plus the album list's row-selection
+ * shortcuts (Space selects the focused row, Shift+Space toggles it).
+ */
+export function useAlbumListFocusManagement(options: UseTableFocusManagementOptions<Album>): TableFocusManagement {
+  const { enabled, listRef, table } = options;
+  const focusManagement = useTableFocusManagement(options);
+
+  const selectFocusedRow = () => {
+    const focusedRow = table.getFocusedRow();
+
+    if (focusedRow == null) {
+      return;
+    }
+
+    table.resetRowSelection(true);
+    focusedRow.toggleSelected(true);
+  };
+
+  const toggleFocusedRowSelection = () => {
+    const focusedRow = table.getFocusedRow();
+
+    if (focusedRow == null) {
+      return;
+    }
+
+    focusedRow.toggleSelected();
+  };
+
+  useHotkeys(
+    [
+      { hotkey: 'Space', callback: selectFocusedRow },
+      { hotkey: 'Shift+Space', callback: toggleFocusedRowSelection }
+    ],
+    {
+      enabled,
+      target: listRef
+    }
+  );
+
+  return focusManagement;
+}
+
+export function useInboxFocusManagement(options: UseTableFocusManagementOptions<InboxEntry>): TableFocusManagement {
+  return useTableFocusManagement(options);
 }

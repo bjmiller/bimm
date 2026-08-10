@@ -16,7 +16,7 @@ declare module '@tanstack/react-table' {
   }
 
   interface Table_FeatureMap<TFeatures extends TableFeatures, TData extends RowData> {
-    rowFocusFeature: RowFocusInstance<TData>;
+    rowFocusFeature: RowFocusInstance<TFeatures, TData>;
   }
 
   interface Row_FeatureMap<TFeatures extends TableFeatures, TData extends RowData> {

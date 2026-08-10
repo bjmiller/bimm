@@ -8,13 +8,13 @@ import {
   searchKeywordValidator
 } from './searchParserResultValidator';
 import { type Row } from '@tanstack/react-table';
-import { type searchableFeatures } from './tableTypes';
+import { type focusableFeatures } from './tableTypes';
 import { calculateRunningtime } from '../components/albumList';
 
 const TWO_MINUTES_MS = 120000;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const searchFilter = (row: Row<typeof searchableFeatures, Album>, columnId: string, filterValue: any) => {
+export const searchFilter = (row: Row<typeof focusableFeatures, Album>, columnId: string, filterValue: any) => {
   if (columnId !== 'album') return false;
   const parsedGlobalFilter = searchParserResultValidator.safeParse(filterValue);
   // Badly formed filter

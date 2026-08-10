@@ -1,13 +1,15 @@
 import {
+  assignPrototypeAPIs,
+  assignTableAPIs,
+  functionalUpdate,
   makeStateUpdater,
   type OnChangeFn,
   type Row,
   type RowData,
   type TableFeature,
+  type TableFeatures,
   type Updater
 } from '@tanstack/react-table';
-
-/* eslint-disable @typescript-eslint/no-explicit-any -- the feature implementation works against `Row<any, …>` because the concrete feature set cannot be named in this generic context. */
 
 export type RowFocusState = string | undefined;
 
@@ -31,27 +33,70 @@ export interface RowFocusRow {
   setFocused: (value?: boolean) => void;
 }
 
-export interface RowFocusInstance<TData extends RowData> {
-  getFocusedRow: () => Row<any, TData> | undefined;
+export interface RowFocusInstance<TFeatures extends TableFeatures, TData extends RowData> {
+  getFocusedRow: () => Row<TFeatures, TData> | undefined;
   getFocusedRowId: () => string | undefined;
   resetRowFocus: (defaultState?: boolean) => void;
   setRowFocus: (updater: Updater<RowFocusState>) => void;
 }
 
 /**
- * A minimal structural view of a table that has the row-focus feature
- * registered. The public table types only surface these members when the
- * feature is present in the table's feature set, which cannot be resolved in
- * the feature's own generic implementation context — so the implementation
- * works against this interface internally.
+ * The structural subset of a focus-enabled table that the feature logic reads
+ * and writes. The stock features keep their logic in standalone functions typed
+ * against the library's broad internal table shape; that shape isn't exported,
+ * so these helpers use a minimal structural interface instead. The public
+ * `Table` type only exposes the `rowFocus` slice when the feature is present
+ * in the feature set, which can't be resolved in this generic context — a
+ * single documented assertion in `constructTableAPIs` bridges that gap.
  */
-interface RowFocusTableInternal<TData extends RowData> extends RowFocusInstance<TData> {
+interface RowFocusTable {
   initialState: { rowFocus?: RowFocusState };
   options: RowFocusOptions;
   atoms: { rowFocus?: { get: () => RowFocusState } };
-  getRowModel: () => { rowsById: Record<string, Row<any, TData>> };
-  getCoreRowModel: () => { rowsById: Record<string, Row<any, TData>> };
+  getRowModel: () => { rowsById: Record<string, unknown> };
+  getCoreRowModel: () => { rowsById: Record<string, unknown> };
 }
+
+/**
+ * The structural subset of a focus-enabled row that the feature logic needs:
+ * its id and a back-reference to the table. The concrete row also carries the
+ * focus APIs via the shared prototype.
+ */
+type FocusRow = { id: string; table: RowFocusTable };
+
+const table_setRowFocus = (table: RowFocusTable, updater: Updater<RowFocusState>) => {
+  const safeUpdater: Updater<RowFocusState> = (old) => functionalUpdate(updater, old);
+  return table.options.onRowFocusChange?.(safeUpdater);
+};
+
+const table_resetRowFocus = (table: RowFocusTable, defaultState?: boolean) => {
+  table_setRowFocus(table, defaultState ? undefined : table.initialState.rowFocus);
+};
+
+const table_getFocusedRowId = (table: RowFocusTable): string | undefined => {
+  return table.atoms.rowFocus?.get();
+};
+
+const table_getFocusedRow = (table: RowFocusTable): unknown => {
+  const focusedRowId = table_getFocusedRowId(table);
+
+  if (focusedRowId == null) {
+    return undefined;
+  }
+
+  const rowsById = table.getRowModel().rowsById;
+  const coreRowsById = table.getCoreRowModel().rowsById;
+
+  return rowsById[focusedRowId] ?? coreRowsById[focusedRowId];
+};
+
+const row_getIsFocused = (row: FocusRow): boolean => {
+  return table_getFocusedRowId(row.table) === row.id;
+};
+
+const row_setFocused = (row: FocusRow, value?: boolean) => {
+  table_setRowFocus(row.table, (value ?? !row_getIsFocused(row)) ? row.id : undefined);
+};
 
 export const rowFocusFeature: TableFeature = {
   getInitialState: (initialState) => {
@@ -68,44 +113,22 @@ export const rowFocusFeature: TableFeature = {
   },
 
   constructTableAPIs: (table) => {
-    const focusTable = table as unknown as RowFocusTableInternal<RowData>;
-
-    focusTable.setRowFocus = (updater) => {
-      focusTable.options.onRowFocusChange?.(updater);
-    };
-
-    focusTable.resetRowFocus = (defaultState) => {
-      focusTable.setRowFocus(defaultState ? undefined : focusTable.initialState.rowFocus);
-    };
-
-    focusTable.getFocusedRowId = () => {
-      return focusTable.atoms.rowFocus?.get();
-    };
-
-    focusTable.getFocusedRow = () => {
-      const focusedRowId = focusTable.getFocusedRowId();
-
-      if (focusedRowId == null) {
-        return undefined;
-      }
-
-      const rowsById = focusTable.getRowModel().rowsById;
-      const coreRowsById = focusTable.getCoreRowModel().rowsById;
-
-      return rowsById[focusedRowId] ?? coreRowsById[focusedRowId];
-    };
+    // The feature is always registered alongside its state/options (see
+    // reactTableFocus.d.ts), so the table satisfies RowFocusTable at runtime;
+    // the public generic type just can't prove it here.
+    const focusTable = table as RowFocusTable;
+    assignTableAPIs('rowFocusFeature', table, {
+      table_setRowFocus: { fn: (updater: Updater<RowFocusState>) => table_setRowFocus(focusTable, updater) },
+      table_resetRowFocus: { fn: (defaultState?: boolean) => table_resetRowFocus(focusTable, defaultState) },
+      table_getFocusedRowId: { fn: () => table_getFocusedRowId(focusTable) },
+      table_getFocusedRow: { fn: () => table_getFocusedRow(focusTable) }
+    });
   },
 
   assignRowPrototype: (prototype, table) => {
-    const focusTable = table as unknown as RowFocusTableInternal<RowData>;
-
-    prototype.getIsFocused = function (this: Row<any, RowData>) {
-      return focusTable.getFocusedRowId() === this.id;
-    };
-
-    prototype.setFocused = function (this: Row<any, RowData>, value?: boolean) {
-      const isFocused = focusTable.getFocusedRowId() === this.id;
-      focusTable.setRowFocus((value ?? !isFocused) ? this.id : undefined);
-    };
+    assignPrototypeAPIs('rowFocusFeature', prototype, table, {
+      row_getIsFocused: { fn: (row: FocusRow) => row_getIsFocused(row) },
+      row_setFocused: { fn: (row: FocusRow, value?: boolean) => row_setFocused(row, value) }
+    });
   }
 };

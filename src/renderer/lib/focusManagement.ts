@@ -560,7 +560,7 @@ export function useAlbumListFocusManagement(options: UseTableFocusManagementOpti
     }
 
     table.resetRowSelection(true);
-    focusedRow.toggleSelected(true);
+    focusedRow.toggleSelected();
   };
 
   const toggleFocusedRowSelection = () => {

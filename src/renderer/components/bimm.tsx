@@ -63,7 +63,13 @@ export const Bimm = () => {
   // seeded from disk (above) as stale data, so it renders instantly and then
   // refetches the full scan in the background, rerendering when fresh data
   // lands. TanStack Query dedupes concurrent mounts to one in-flight fetch.
-  const albumsQuery = useQuery(trpc.file.getAlbums.queryOptions(selected));
+  // Disabled outside the album list (inbox/settings), so a non-directory
+  // selection like "Inbox" never triggers a bogus filesystem scan.
+  const albumsQuery = useQuery(
+    trpc.file.getAlbums.queryOptions(selected, {
+      enabled: albumListSelected
+    })
+  );
   const albumsData = useMemo(
     () => albumsQuery.data?.filter((album) => album.tracks?.length !== 0) ?? [],
     [albumsQuery.data]
@@ -107,11 +113,11 @@ export const Bimm = () => {
       />
       {albumListSelected && (
         <AlbumList
+          albumsQuery={albumsQuery}
           clearRowFocus={clearAlbumListRowFocus}
           focusFirstRowRequest={focusAlbumListFirstRowRequest}
           paneRef={albumListPaneRef}
           searchPaneRef={albumSearchPaneRef}
-          selected={selected}
           selectedRows={selectedRows}
           onSelectedRowsChange={setSelectedRows}
           key={selected}

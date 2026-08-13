@@ -1,6 +1,8 @@
 import React, { type Dispatch, useCallback, useMemo, useState, type RefObject, type SetStateAction } from 'react';
 import { useTRPC } from '../lib/trpc';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
+import type { TRPCClientErrorLike } from '@trpc/client';
+import type { AppRouter } from '../../main/appRouter';
 import {
   type SortingState,
   createColumnHelper,
@@ -27,11 +29,11 @@ import { TagEditor } from './tagEditor';
 dayjs.extend(duration);
 
 interface AlbumListProps {
+  albumsQuery: UseQueryResult<Album[], TRPCClientErrorLike<AppRouter>>;
   clearRowFocus: boolean;
   focusFirstRowRequest: number;
   paneRef: RefObject<HTMLDivElement | null>;
   searchPaneRef: RefObject<HTMLDivElement | null>;
-  selected: string | undefined;
   selectedRows?: Map<string, number>;
   onSelectedRowsChange?: Dispatch<SetStateAction<Map<string, number>>>;
 }
@@ -96,19 +98,16 @@ export type Row<TData extends RowData> = TanStackRow<FocusableFeatures, TData>;
 
 export const AlbumList = (props: AlbumListProps) => {
   const {
+    albumsQuery,
     clearRowFocus,
     focusFirstRowRequest,
     paneRef: listRef,
     searchPaneRef,
-    selected,
     selectedRows: controlledSelectedRows,
     onSelectedRowsChange
   } = props;
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-  // Shares the single getAlbums query for this directory (see bimm.tsx), so
-  // the table updates in place when the fresh revalidation lands.
-  const albumsQuery = useQuery(trpc.file.getAlbums.queryOptions(selected));
 
   const data = useMemo(() => albumsQuery.data?.filter((album) => album.tracks?.length !== 0) ?? [], [albumsQuery.data]);
 

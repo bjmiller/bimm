@@ -1,6 +1,7 @@
 node_modules
 notes.md
 dist
+release
 .env
 .DS_Store
 plans

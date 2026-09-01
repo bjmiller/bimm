@@ -1,0 +1,32 @@
+appId: dev.bimm.app
+productName: BIMM
+directories:
+  output: release
+  buildResources: src/icons
+files:
+  - dist/**/*
+  - "!**/.DS_Store"
+asarUnpack:
+  - "**/node-unrar-js/**"
+mac:
+  category: public.app-category.music
+  icon: musicalNote.icns
+  identity: "-"
+  target:
+    - target: dmg
+      arch:
+        - arm64
+        - x64
+    - target: zip
+      arch:
+        - arm64
+        - x64
+win:
+  icon: musicalNote512.png
+  target:
+    - target: nsis
+      arch:
+        - x64
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true

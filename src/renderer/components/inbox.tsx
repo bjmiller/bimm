@@ -9,7 +9,7 @@ import { AlbumRow } from './albumRow';
 import { CompressedFileRow } from './compressedFileRow';
 import { ChevronUpIcon } from '../../icons/chevronUp';
 import { ChevronDownIcon } from '../../icons/chevronDown';
-import { Album, CompressedFile, type InboxEntry } from '../../types';
+import type { Album, CompressedFile, InboxEntry } from '../../types';
 import { useInboxFocusManagement } from '../lib/focusManagement';
 import { focusableFeatures, type FocusableFeatures } from '../lib/tableTypes';
 import { patchAlbumInQueryCaches } from '../lib/patchAlbumInQueryCaches';
@@ -29,8 +29,15 @@ type Row<TData extends InboxEntry> = TanStackRow<InboxFeatures, TData>;
 
 const columnHelper = createColumnHelper<InboxFeatures, InboxEntry>();
 
-const isAlbum = (entry: InboxEntry): entry is Album => Album.safeParse(entry).success;
-const isCompressedFile = (entry: InboxEntry) => CompressedFile.safeParse(entry).success;
+// `tracks` is the discriminator: every Album has it and CompressedFile never
+// does. A structural check is used rather than `Album.safeParse`, which deep
+// copies the whole album (every track) and was running in the column
+// accessors and the render loop for each row.
+const isAlbum = (entry: InboxEntry): entry is Album => Array.isArray((entry as Partial<Album>).tracks);
+// Deliberately not a type predicate: Album is structurally a CompressedFile
+// (a superset of its fields), so `entry is CompressedFile` would narrow both
+// union members and leave `never` in the else branch.
+const isCompressedFile = (entry: InboxEntry) => !isAlbum(entry);
 
 /**
  * Narrows an inbox row to an album row for rendering. `Row` is invariant in
@@ -346,6 +353,9 @@ export const Inbox = (props: InboxProps) => {
     void (async () => {
       try {
         await populateAlbumGenresMutation.mutateAsync(albums);
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error(e);
       } finally {
         await inboxQuery.refetch();
       }
@@ -370,6 +380,9 @@ export const Inbox = (props: InboxProps) => {
     void (async () => {
       try {
         await populateBandcampTagsMutation.mutateAsync(albums);
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error(e);
       } finally {
         await inboxQuery.refetch();
       }

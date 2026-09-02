@@ -183,6 +183,8 @@ const sendToVlcWeb = async (vlcCommand: VlcCommand, options: VlcWebRequestOption
     const response = await fetch(url, { headers: { Authorization }, signal: abortController.signal });
 
     if (!response.ok) {
+      // Release the connection: an unconsumed body keeps the socket held until GC.
+      await response.body?.cancel().catch(() => undefined);
       throw new Error(`VLC request failed: ${response.status} ${response.statusText}`);
     }
 

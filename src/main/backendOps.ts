@@ -130,6 +130,13 @@ const isCompressed = (filename: string) => {
 
 const fullPathOf = (dirent: Dirent) => `${dirent.parentPath}${sep}${dirent.name}`;
 
+// Caps concurrent track metadata parses across every album being scanned.
+// Without this, 20 concurrent album scans each parse all their tracks at once,
+// so open file descriptors scale with tracks-per-album and a big box set can
+// run the process into EMFILE.
+const NUMBER_OF_CONCURRENT_TRACK_PARSES = 30;
+const trackParseLimit = pLimit(NUMBER_OF_CONCURRENT_TRACK_PARSES);
+
 const getAlbumMetadataPath = (albumPath: string) => join(albumPath, BIMM_METADATA_FILENAME);
 
 const parseAlbumMetadata = (contents: string, metadataPath: string) => {
@@ -268,7 +275,7 @@ const readTracks = async (dir: string) => {
       fullPath: fullPathOf(dirent)
     };
     try {
-      metadata = await parseFile(fullPath, { duration: true, skipCovers: true });
+      metadata = await trackParseLimit(() => parseFile(fullPath, { duration: true, skipCovers: true }));
       track = {
         ...track,
         title: metadata.common.title,

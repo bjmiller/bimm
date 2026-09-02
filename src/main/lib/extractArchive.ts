@@ -1,10 +1,19 @@
 import fs from 'node:fs';
+import { type FileHandle } from 'node:fs/promises';
 import path from 'node:path';
-import { BlobReader, ZipReader } from '@zip.js/zip.js';
+import { Writable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
+import { Reader, ZipReader } from '@zip.js/zip.js';
 import { createExtractorFromFile } from 'node-unrar-js';
+import pLimit from 'p-limit';
 import * as tar from 'tar';
 import log from 'electron-log/main';
 import { RarExtractor } from '../../types';
+
+// How many zip entries are decompressed and written at once. Bounded so peak
+// memory is a few entries' worth of stream buffers rather than the whole
+// archive's decompressed contents.
+const ZIP_ENTRY_CONCURRENCY = 4;
 
 const isUrlFile = (filename: string) => filename.toLowerCase().endsWith('.url');
 
@@ -31,34 +40,70 @@ const isSafeArchiveEntryPath = (destDir: string, relativePath: string) => {
   }
 };
 
-const writeEntry = async (destDir: string, relativePath: string, data: Uint8Array | Buffer) => {
-  if (isUrlFile(relativePath)) return;
-  const targetPath = resolveArchiveEntryPath(destDir, relativePath);
-  const targetDir = path.dirname(targetPath);
-  await fs.promises.mkdir(targetDir, { recursive: true });
-  await fs.promises.writeFile(targetPath, data);
-};
+// Random-access zip.js reader over an open file handle, so the archive is read
+// in chunks at the offsets zip.js asks for rather than loaded whole into memory.
+class FileHandleReader extends Reader<FileHandle> {
+  private readonly handle: FileHandle;
+
+  constructor(handle: FileHandle) {
+    super(handle);
+    this.handle = handle;
+  }
+
+  override async init() {
+    await super.init?.();
+    const stats = await this.handle.stat();
+    this.size = stats.size;
+  }
+
+  override async readUint8Array(index: number, length: number): Promise<Uint8Array> {
+    const remaining = Math.max(0, Math.min(length, this.size - index));
+    const buffer = new Uint8Array(remaining);
+    let offset = 0;
+    while (offset < remaining) {
+      // eslint-disable-next-line no-await-in-loop
+      const { bytesRead } = await this.handle.read(buffer, offset, remaining - offset, index + offset);
+      if (bytesRead === 0) break;
+      offset += bytesRead;
+    }
+    return offset === remaining ? buffer : buffer.subarray(0, offset);
+  }
+}
 
 const extractZip = async (archivePath: string, destDir: string) => {
-  const data = await fs.promises.readFile(archivePath);
-  const archiveBlob = new Blob([data]);
-  const reader = new BlobReader(archiveBlob);
-  const zipReader = new ZipReader(reader);
+  const handle = await fs.promises.open(archivePath, 'r');
   try {
-    const entries = await zipReader.getEntries();
+    const zipReader = new ZipReader(new FileHandleReader(handle));
+    try {
+      const entries = await zipReader.getEntries();
 
-    const fileEntries = entries.filter(
-      (entry): entry is typeof entry & { directory: false } =>
-        !entry.directory && !isUrlFile(entry.filename) && isSafeArchiveEntryPath(destDir, entry.filename)
-    );
-    const writes = fileEntries.map(async (entry) => {
-      const arrayBuffer = await entry.arrayBuffer();
-      await writeEntry(destDir, entry.filename, new Uint8Array(arrayBuffer));
-    });
+      const fileEntries = entries.filter(
+        (entry): entry is typeof entry & { directory: false } =>
+          !entry.directory && !isUrlFile(entry.filename) && isSafeArchiveEntryPath(destDir, entry.filename)
+      );
 
-    await Promise.all(writes);
+      const limit = pLimit(ZIP_ENTRY_CONCURRENCY);
+      const writes = fileEntries.map((entry) =>
+        limit(async () => {
+          const targetPath = resolveArchiveEntryPath(destDir, entry.filename);
+          await fs.promises.mkdir(path.dirname(targetPath), { recursive: true });
+          // Stream the decompressed entry straight to disk instead of buffering it.
+          const fileStream = fs.createWriteStream(targetPath);
+          try {
+            await entry.getData(Writable.toWeb(fileStream));
+          } catch (entryError) {
+            fileStream.destroy();
+            throw entryError;
+          }
+        })
+      );
+
+      await Promise.all(writes);
+    } finally {
+      await zipReader.close();
+    }
   } finally {
-    await zipReader.close();
+    await handle.close();
   }
 };
 
@@ -90,16 +135,15 @@ const extractRar = async (archivePath: string, destDir: string) => {
 
 const extractTar = async (archivePath: string, destDir: string) => {
   await ensureDir(destDir);
-  await new Promise<void>((resolve, reject) => {
-    const stream = fs.createReadStream(archivePath).pipe(
-      tar.extract({
-        cwd: destDir,
-        filter: (filePath: string) => !isUrlFile(filePath) && isSafeArchiveEntryPath(destDir, filePath)
-      })
-    );
-    stream.on('finish', () => resolve());
-    stream.on('error', (err: Error) => reject(err));
-  });
+  // `pipeline` (unlike `.pipe()`) surfaces errors from the read stream too and
+  // destroys both streams on failure, so a bad read can't leave this pending.
+  await pipeline(
+    fs.createReadStream(archivePath),
+    tar.extract({
+      cwd: destDir,
+      filter: (filePath: string) => !isUrlFile(filePath) && isSafeArchiveEntryPath(destDir, filePath)
+    })
+  );
 };
 
 export const extractArchive = async (archivePath: string, destDir: string): Promise<void> => {

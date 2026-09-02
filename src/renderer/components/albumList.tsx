@@ -360,6 +360,9 @@ export const AlbumList = (props: AlbumListProps) => {
     void (async () => {
       try {
         await populateAlbumGenresMutation.mutateAsync(albums);
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error(e);
       } finally {
         await albumsQuery.refetch();
       }
@@ -380,6 +383,9 @@ export const AlbumList = (props: AlbumListProps) => {
     void (async () => {
       try {
         await populateBandcampTagsMutation.mutateAsync(albums);
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error(e);
       } finally {
         await albumsQuery.refetch();
       }

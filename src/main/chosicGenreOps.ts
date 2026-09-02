@@ -91,6 +91,21 @@ const formatElapsedSeconds = (start: number) => {
   return ((performance.now() - start) / MILLISECONDS_PER_SECOND).toFixed(CHOSIC_REQUEST_DURATION_DECIMALS);
 };
 
+// `Promise.all` with every input marked as handled. Used to race a page action
+// against the `waitForResponse` calls it triggers: if one branch rejects, the
+// rest keep running until `finally` closes the page, at which point they reject
+// too, and with plain `Promise.all` nobody would be listening.
+const allFailFast = <T extends readonly unknown[] | []>(
+  promises: T
+): Promise<{ -readonly [P in keyof T]: Awaited<T[P]> }> => {
+  for (const promise of promises) {
+    if (promise instanceof Promise) {
+      promise.catch(() => undefined);
+    }
+  }
+  return Promise.all(promises);
+};
+
 const normalizeChosicMatchText = (value?: string) => value?.trim().replace(/\s+/g, ' ').toLowerCase() ?? '';
 
 const chooseMatchingTrack = (trackSearch: ChosicTrackSearch, submittedTitle?: string, submittedArtist?: string) => {
@@ -232,7 +247,7 @@ const downloadChosicGenres = async (album: Album) => {
     await page.selectOption('#suggestion-options', 'song').catch(() => undefined);
     await input.fill('');
 
-    const [trackSearch] = await Promise.all([
+    const [trackSearch] = await allFailFast([
       waitForChosicJson(
         page,
         (response) => response.url().startsWith(CHOSIC_SEARCH_QUERY) && response.url().includes('type=track'),
@@ -251,7 +266,7 @@ const downloadChosicGenres = async (album: Album) => {
     const suggestion = page.locator(`#form-suggestions .span-class[data-song-id="${matchingTrack.id}"]`).first();
     await suggestion.waitFor({ state: 'visible', timeout: CHOSIC_RESPONSE_TIMEOUT_MS });
 
-    const [trackDetails, artistSearch] = await Promise.all([
+    const [trackDetails, artistSearch] = await allFailFast([
       waitForChosicJson(
         page,
         (response) => response.url() === `${CHOSIC_TRACKS_URL}/${matchingTrack.id}`,

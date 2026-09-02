@@ -9,6 +9,7 @@
     "package": "npm run build && electron-builder",
     "package:mac": "npm run build && electron-builder --mac",
     "package:win": "npm run build && electron-builder --win",
+    "create-release": "node scripts/create-release.mts",
     "start": "electron .",
     "typecheck": "tsc --noEmit",
     "lint": "eslint ."

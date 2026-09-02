@@ -23,6 +23,7 @@
   },
   "include": [
     "src",
+    "scripts",
     "webpack.config.*ts",
     "*.config.js"
   ]

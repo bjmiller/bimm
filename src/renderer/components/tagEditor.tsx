@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTRPC } from '../lib/trpc';
 import { addTags, removeTag } from '../../lib/tags';
 import { patchAlbumInQueryCaches } from '../lib/patchAlbumInQueryCaches';
+import { logger } from '../lib/logger';
 import { type Album, type AlbumMetadata } from '../../types';
 import { TagField } from './tagField';
 
@@ -114,8 +115,7 @@ export const TagEditor = ({ album, onClose, onSaved }: TagEditorProps) => {
         patchCaches(updatedAlbum);
         await onSaved?.();
       } catch (saveError) {
-        // eslint-disable-next-line no-console
-        console.error(saveError instanceof Error ? saveError.message : 'Unable to save tags.');
+        logger.error(saveError instanceof Error ? saveError.message : 'Unable to save tags.');
       }
     })();
   }, [album.fullpath, isPending, onClose, onSaved, patchCaches, tags, writeAlbumTagsMutation]);

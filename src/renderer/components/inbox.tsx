@@ -13,6 +13,7 @@ import type { Album, CompressedFile, InboxEntry } from '../../types';
 import { useInboxFocusManagement } from '../lib/focusManagement';
 import { focusableFeatures, type FocusableFeatures } from '../lib/tableTypes';
 import { patchAlbumInQueryCaches } from '../lib/patchAlbumInQueryCaches';
+import { logger } from '../lib/logger';
 import { TagEditor } from './tagEditor';
 dayjs.extend(duration);
 
@@ -156,8 +157,7 @@ export const Inbox = (props: InboxProps) => {
           await addAndPlayAlbumsMutation.mutateAsync([album]);
         }
       } catch (e) {
-        // eslint-disable-next-line no-console
-        console.error(e);
+        logger.error(e);
       } finally {
         setExtractingPath(null);
       }
@@ -194,14 +194,12 @@ export const Inbox = (props: InboxProps) => {
       return;
     }
 
-    // eslint-disable-next-line no-console
-    console.log(entry.filename);
+    logger.log(entry.filename);
     void (async () => {
       try {
         await addAndPlayAlbumsMutation.mutateAsync([entry]);
       } catch (e) {
-        // eslint-disable-next-line no-console
-        console.error(e);
+        logger.error(e);
       }
     })();
   }, [addAndPlayAlbumsMutation, extractAndPlay, table]);
@@ -231,8 +229,7 @@ export const Inbox = (props: InboxProps) => {
         // list so it appears without waiting for that query to go stale.
         await queryClient.invalidateQueries({ queryKey: trpc.file.getAlbums.pathKey() });
       } catch (e) {
-        // eslint-disable-next-line no-console
-        console.error(e);
+        logger.error(e);
       } finally {
         setMovingPath(null);
       }
@@ -254,8 +251,7 @@ export const Inbox = (props: InboxProps) => {
         setRowFocus(undefined);
         await inboxQuery.refetch();
       } catch (e) {
-        // eslint-disable-next-line no-console
-        console.error(e);
+        logger.error(e);
       }
     })();
   }, [inboxQuery, table, trashItemMutation]);
@@ -354,8 +350,7 @@ export const Inbox = (props: InboxProps) => {
       try {
         await populateAlbumGenresMutation.mutateAsync(albums);
       } catch (e) {
-        // eslint-disable-next-line no-console
-        console.error(e);
+        logger.error(e);
       } finally {
         await inboxQuery.refetch();
       }
@@ -381,8 +376,7 @@ export const Inbox = (props: InboxProps) => {
       try {
         await populateBandcampTagsMutation.mutateAsync(albums);
       } catch (e) {
-        // eslint-disable-next-line no-console
-        console.error(e);
+        logger.error(e);
       } finally {
         await inboxQuery.refetch();
       }

@@ -3,6 +3,7 @@ import { type AppSettings } from '../../types';
 import { DownArrowIcon } from '../../icons/downArrow';
 import { GearIcon } from '../../icons/gear';
 import { FolderIcon } from '../../icons/folder';
+import { TerminalIcon } from '../../icons/terminal';
 import { useSidePanelFocusManagement } from '../lib/focusManagement';
 import { SidePanelItem } from './sidePanelItem';
 import { SelectedRunningTime } from './selectedRunningTime';
@@ -56,6 +57,14 @@ export const SidePanel = ({
         key="Settings"
         itemName="Settings"
         icon={<GearIcon className="mb-1 h-4" />}
+        selected={selected}
+        setSelected={setSelected}
+      />
+
+      <SidePanelItem
+        key="Logs"
+        itemName="Logs"
+        icon={<TerminalIcon className="mt-0.75 mb-1 h-4" />}
         selected={selected}
         setSelected={setSelected}
       />

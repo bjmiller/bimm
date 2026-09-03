@@ -35,7 +35,7 @@ interface FocusState {
   focusedPane: Pane | undefined;
 }
 
-type MainContent = 'albumList' | 'inbox' | 'settings';
+type MainContent = 'albumList' | 'inbox' | 'settings' | 'logs';
 type TabDirection = 'backward' | 'forward';
 
 type FocusAction =
@@ -47,18 +47,17 @@ const getPaneOrder = (mainContent: MainContent): Pane[] => {
   if (mainContent === 'albumList') {
     return ['sidePanel', 'albumList', 'albumSearch'];
   }
-
   if (mainContent === 'inbox') {
     return ['sidePanel', 'inbox'];
   }
-
   if (mainContent === 'settings') {
     return ['sidePanel', 'settingsDirectories', 'settingsInbox', 'settingsSave'];
   }
-
+  if (mainContent === 'logs') {
+    return ['sidePanel', 'main'];
+  }
   return ['sidePanel', 'main'];
 };
-
 const getNextPane = (pane: Pane | undefined, paneOrder: Pane[], direction: TabDirection): Pane => {
   const defaultIndex = direction === 'forward' ? Math.min(1, paneOrder.length - 1) : 0;
   const defaultPane = paneOrder[defaultIndex] ?? paneOrder[0];

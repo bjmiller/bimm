@@ -4,6 +4,9 @@ import log from 'electron-log/main';
 import { createIPCHandler } from 'trpc-electron/main';
 import { ensureDirectory, readOrCreateSettings } from './main/backendOps';
 import { appRouter } from './main/appRouter';
+import { installLogBroadcaster } from './main/logBroadcaster';
+
+installLogBroadcaster();
 
 log.transports.file.level = false;
 log.initialize();

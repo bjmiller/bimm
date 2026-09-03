@@ -2,16 +2,22 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTRPC, useTRPCClient } from '../lib/trpc';
 import { AlbumList, calculateRunningtime } from './albumList';
 import { Inbox } from './inbox';
+import { Logs } from './logs';
 import { SidePanel } from './sidePanel';
 import { Settings } from './settings';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAppFocusManagement } from '../lib/focusManagement';
+import { useMainLogSync } from '../lib/useMainLogSync';
 
 export const Bimm = () => {
   const trpc = useTRPC();
   const trpcClient = useTRPCClient();
   const queryClient = useQueryClient();
   const settings = useQuery(trpc.settings.getSettings.queryOptions());
+
+  // Pull main-process log entries into the renderer's IndexedDB store for the
+  // whole app session, not just while the Logs page is visible.
+  useMainLogSync();
 
   const [selected, setSelected] = useState(settings.data?.directories?.[0]);
   const [selectedRows, setSelectedRows] = useState<Map<string, number>>(new Map());
@@ -86,7 +92,13 @@ export const Bimm = () => {
     }
     return total;
   }, [albumsData, selectedRows]);
-  const mainContent = albumListSelected ? 'albumList' : selected === 'Settings' ? 'settings' : 'inbox';
+  const mainContent = albumListSelected
+    ? 'albumList'
+    : selected === 'Settings'
+      ? 'settings'
+      : selected === 'Logs'
+        ? 'logs'
+        : 'inbox';
   const {
     albumListPaneRef,
     albumSearchPaneRef,
@@ -134,7 +146,8 @@ export const Bimm = () => {
               key="Inbox"
             />
           ),
-          Settings: <Settings paneRef={mainPaneRef} />
+          Settings: <Settings paneRef={mainPaneRef} />,
+          Logs: <Logs paneRef={mainPaneRef} key="Logs" />
         }[selected ?? '']}
     </div>
   );

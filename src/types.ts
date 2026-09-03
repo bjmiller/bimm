@@ -4,6 +4,25 @@ export interface IconProps {
   className?: string;
 }
 
+// --- log entries ------------------------------------------------------------
+//
+// A single log line as stored in the renderer's IndexedDB store. Main-process
+// log calls are forwarded to the renderer over tRPC and merged into the same
+// store, so `source` records where a line originated.
+
+export type LogSeverity = 'debug' | 'log' | 'info' | 'warn' | 'error';
+
+export type LogSource = 'main' | 'renderer';
+
+export interface LogEntry {
+  id: string;
+  /** Epoch milliseconds, when the log call happened. */
+  createdAt: number;
+  severity: LogSeverity;
+  source: LogSource;
+  message: string;
+}
+
 // --- node-unrar-js runtime validators -------------------------------------
 //
 // `createExtractorFromFile` returns an `Extractor` whose runtime shape is

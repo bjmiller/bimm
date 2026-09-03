@@ -2,6 +2,7 @@ import { useState, type RefObject } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useTRPC } from '../lib/trpc';
 import { AppSettings } from '../../types';
+import { logger } from '../lib/logger';
 
 interface SettingsProps {
   paneRef: RefObject<HTMLDivElement | null>;
@@ -61,8 +62,7 @@ export const Settings = ({ paneRef }: SettingsProps) => {
       await saveMutation.mutateAsync(draft);
       await settings.refetch();
     } catch (saveError) {
-      // eslint-disable-next-line no-console
-      console.error('Failed to save settings', saveError);
+      logger.error('Failed to save settings', saveError);
     }
   };
 

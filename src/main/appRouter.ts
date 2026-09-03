@@ -20,6 +20,7 @@ import { z } from 'zod';
 import { addAndPlayAlbums, enqueueAlbums } from './vlcControlOps';
 import { extractAndIngestAlbum } from './archiveOps';
 import { messageFrom } from './lib/messageFrom';
+import { createMainLogStream, recentMainLogs } from './logBroadcaster';
 
 const t = initTRPC.create({ transformer: superjson });
 
@@ -138,6 +139,15 @@ export const appRouter = t.router({
     addAlbumToQueue: t.procedure.input(z.array(Album)).mutation(async ({ input }) => {
       return await enqueueAlbums(input);
     })
+  },
+  logs: {
+    // Live feed of main-process log entries. trpc-electron pushes each value
+    // the generator yields to the subscribed renderer over its IPC channel.
+    onLog: t.procedure.subscription(async function* onLog() {
+      yield* createMainLogStream();
+    }),
+    // Backfill for lines emitted before the renderer's subscription connected.
+    getRecent: t.procedure.query(() => recentMainLogs())
   }
 });
 

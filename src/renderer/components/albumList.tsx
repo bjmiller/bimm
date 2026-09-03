@@ -24,6 +24,7 @@ import { focusableFeatures, type FocusableFeatures } from '../lib/tableTypes';
 import { AlbumSearch } from './albumSearch';
 import { searchFilter } from '../lib/searchFilter';
 import { patchAlbumInQueryCaches } from '../lib/patchAlbumInQueryCaches';
+import { logger } from '../lib/logger';
 import { useHotkeys } from '@tanstack/react-hotkeys';
 import { TagEditor } from './tagEditor';
 dayjs.extend(duration);
@@ -198,14 +199,12 @@ export const AlbumList = (props: AlbumListProps) => {
     if (selectedRows.size === 0) {
       const focusedRow = table.getFocusedRow();
       if (focusedRow != null) {
-        // eslint-disable-next-line no-console
-        console.log(focusedRow.original.filename);
+        logger.log(focusedRow.original.filename);
         void (async () => {
           try {
             await addAndPlayAlbumsMutation.mutateAsync([focusedRow.original]);
           } catch (e) {
-            // eslint-disable-next-line no-console
-            console.error(e);
+            logger.error(e);
           }
         })();
       }
@@ -221,14 +220,12 @@ export const AlbumList = (props: AlbumListProps) => {
       .sort((a, b) => a.timestamp - b.timestamp)
       .map((item) => item.row.original);
 
-    // eslint-disable-next-line no-console
-    console.log(sortedAlbums);
+    logger.log(sortedAlbums);
     void (async () => {
       try {
         await addAndPlayAlbumsMutation.mutateAsync(sortedAlbums);
       } catch (e) {
-        // eslint-disable-next-line no-console
-        console.error(e);
+        logger.error(e);
       }
     })();
   }, [addAndPlayAlbumsMutation, selectedRows, table]);
@@ -239,14 +236,12 @@ export const AlbumList = (props: AlbumListProps) => {
     if (selectedRows.size === 0) {
       const focusedRow = table.getFocusedRow();
       if (focusedRow != null) {
-        // eslint-disable-next-line no-console
-        console.log(focusedRow.original.filename);
+        logger.log(focusedRow.original.filename);
         void (async () => {
           try {
             await addAlbumsToQueueMutation.mutateAsync([focusedRow.original]);
           } catch (e) {
-            // eslint-disable-next-line no-console
-            console.error(e);
+            logger.error(e);
           }
         })();
       }
@@ -262,14 +257,12 @@ export const AlbumList = (props: AlbumListProps) => {
       .sort((a, b) => a.timestamp - b.timestamp)
       .map((item) => item.row.original);
 
-    // eslint-disable-next-line no-console
-    console.log(sortedAlbums);
+    logger.log(sortedAlbums);
     void (async () => {
       try {
         await addAlbumsToQueueMutation.mutateAsync(sortedAlbums);
       } catch (e) {
-        // eslint-disable-next-line no-console
-        console.error(e);
+        logger.error(e);
       }
     })();
   }, [addAlbumsToQueueMutation, selectedRows, table]);
@@ -361,8 +354,7 @@ export const AlbumList = (props: AlbumListProps) => {
       try {
         await populateAlbumGenresMutation.mutateAsync(albums);
       } catch (e) {
-        // eslint-disable-next-line no-console
-        console.error(e);
+        logger.error(e);
       } finally {
         await albumsQuery.refetch();
       }
@@ -384,8 +376,7 @@ export const AlbumList = (props: AlbumListProps) => {
       try {
         await populateBandcampTagsMutation.mutateAsync(albums);
       } catch (e) {
-        // eslint-disable-next-line no-console
-        console.error(e);
+        logger.error(e);
       } finally {
         await albumsQuery.refetch();
       }

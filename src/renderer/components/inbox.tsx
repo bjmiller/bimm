@@ -142,6 +142,32 @@ export const Inbox = (props: InboxProps) => {
   const extractAndIngestMutation = useMutation(trpc.archive.extractAndIngest.mutationOptions());
   const moveAlbumToTargetMutation = useMutation(trpc.file.moveAlbumToTarget.mutationOptions());
   const trashItemMutation = useMutation(trpc.file.trashItem.mutationOptions());
+  const populateAlbumGenresMutation = useMutation(trpc.web.getSpotifyGenres.mutationOptions());
+  const populateBandcampTagsMutation = useMutation(trpc.web.getBandcampTags.mutationOptions());
+
+  // Detached tag fetch for a freshly extracted album. Playback only needs the
+  // audio files on disk, so this runs without holding anything up: both
+  // fetches are independent and persist to bimm.json when they finish (the
+  // getSpotifyGenres/getBandcampTags procedures skip albums that already have
+  // the metadata), and the inbox is refetched afterwards so the new row picks
+  // up the genres/tags.
+  const fetchExtractedTags = useCallback(
+    (album: Album) => {
+      void (async () => {
+        const results = await Promise.allSettled([
+          populateAlbumGenresMutation.mutateAsync([getChosicLookupAlbum(album)]),
+          populateBandcampTagsMutation.mutateAsync([getBandcampLookupAlbum(album)])
+        ]);
+        for (const result of results) {
+          if (result.status === 'rejected') {
+            logger.error(result.reason);
+          }
+        }
+        await inboxQuery.refetch();
+      })();
+    },
+    [inboxQuery, populateAlbumGenresMutation, populateBandcampTagsMutation]
+  );
 
   const extractAndPlay = useCallback(
     async (entry: CompressedFile) => {
@@ -152,17 +178,22 @@ export const Inbox = (props: InboxProps) => {
       setExtractingPath(entry.fullpath);
       try {
         const album = await extractAndIngestMutation.mutateAsync(entry);
-        await inboxQuery.refetch();
-        if (album != null) {
-          await addAndPlayAlbumsMutation.mutateAsync([album]);
+        if (album == null) {
+          await inboxQuery.refetch();
+          return;
         }
+
+        // Tags load in the background; playing and repainting the row only
+        // need the extracted audio files, so neither waits for the fetches.
+        fetchExtractedTags(album);
+        await Promise.all([addAndPlayAlbumsMutation.mutateAsync([album]), inboxQuery.refetch()]);
       } catch (e) {
         logger.error(e);
       } finally {
         setExtractingPath(null);
       }
     },
-    [addAndPlayAlbumsMutation, extractAndIngestMutation, extractingPath, inboxQuery]
+    [addAndPlayAlbumsMutation, extractAndIngestMutation, extractingPath, fetchExtractedTags, inboxQuery]
   );
 
   const rowClickHandler = useCallback(
@@ -275,7 +306,6 @@ export const Inbox = (props: InboxProps) => {
       retry: false
     })
   );
-  const populateAlbumGenresMutation = useMutation(trpc.web.getSpotifyGenres.mutationOptions());
 
   const bandcampLookupInput = useMemo(
     () => (focusedAlbum == null ? EMPTY_BANDCAMP_LOOKUP_ALBUM : getBandcampLookupAlbum(focusedAlbum)),
@@ -290,7 +320,6 @@ export const Inbox = (props: InboxProps) => {
       retry: false
     })
   );
-  const populateBandcampTagsMutation = useMutation(trpc.web.getBandcampTags.mutationOptions());
 
   const patchCaches = useCallback(
     (updatedAlbum: Album) => {

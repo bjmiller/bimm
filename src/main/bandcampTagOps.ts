@@ -93,13 +93,6 @@ export const fetchBandcampTags = (album: Album): Promise<string[]> => {
   return bandcampQueue.add(() => fetchBandcampTagsUnqueued(album));
 };
 
-// Downloads tags without persisting them — the caller decides how to write.
-// Used when another writer may be persisting different keys to the same
-// bimm.json concurrently, so the fetch and the write can be coordinated.
-export const downloadBandcampTagsQueued = (album: Album): Promise<string[]> => {
-  return bandcampQueue.add(() => downloadBandcampTagsUnqueued(album));
-};
-
 const downloadBandcampTagsUnqueued = async (album: Album): Promise<string[]> => {
   const albumLabel = album.filename;
   log.log(`[bandcamp] fetching tags (${albumLabel})`);

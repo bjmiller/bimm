@@ -8,7 +8,7 @@ const globals = require('globals');
 
 const config = defineConfig(
   {
-    ignores: ['dist/*']
+    ignores: ['dist/*', 'release/*', 'resources/*']
   },
   js.configs.recommended,
   tseslint.configs.recommendedTypeChecked,

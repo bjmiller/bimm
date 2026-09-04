@@ -1,3 +1,4 @@
+import './main/playwrightBrowsersPath';
 import { app, BrowserWindow, nativeImage } from 'electron';
 import { join } from 'node:path';
 import log from 'electron-log/main';

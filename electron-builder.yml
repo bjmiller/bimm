@@ -6,21 +6,20 @@ directories:
 files:
   - dist/**/*
   - "!**/.DS_Store"
+extraResources:
+  - from: resources/playwright-browsers
+    to: playwright-browsers
 asarUnpack:
   - "**/node-unrar-js/**"
 mac:
   category: public.app-category.music
   icon: musicalNote.icns
   identity: "-"
+  signIgnore:
+    - playwright-browsers
   target:
-    - target: dmg
-      arch:
-        - arm64
-        - x64
-    - target: zip
-      arch:
-        - arm64
-        - x64
+    - dmg
+    - zip
 win:
   icon: musicalNote512.png
   target:

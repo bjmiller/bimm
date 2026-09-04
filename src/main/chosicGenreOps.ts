@@ -142,19 +142,30 @@ let chosicContextPromise: Promise<BrowserContext> | undefined;
 const launchChosicContext = async (): Promise<BrowserContext> => {
   await fs.mkdir(CHOSIC_BROWSER_PROFILE_PATH, { recursive: true });
 
-  const context = await chromium.launchPersistentContext(CHOSIC_BROWSER_PROFILE_PATH, {
-    channel: 'chromium',
-    extraHTTPHeaders: {
-      'Accept-Language': 'en-US,en;q=0.9'
-    },
-    headless: true,
-    javaScriptEnabled: true,
-    locale: 'en-US',
-    serviceWorkers: 'allow',
-    userAgent:
-      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36',
-    viewport: { width: 1366, height: 900 }
-  });
+  let context: BrowserContext;
+
+  try {
+    context = await chromium.launchPersistentContext(CHOSIC_BROWSER_PROFILE_PATH, {
+      channel: 'chromium',
+      extraHTTPHeaders: {
+        'Accept-Language': 'en-US,en;q=0.9'
+      },
+      headless: true,
+      javaScriptEnabled: true,
+      locale: 'en-US',
+      serviceWorkers: 'allow',
+      userAgent:
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36',
+      viewport: { width: 1366, height: 900 }
+    });
+  } catch (error) {
+    log.error('[chosic] failed to launch chromium browser', {
+      browsersPath: process.env.PLAYWRIGHT_BROWSERS_PATH,
+      executablePath: chromium.executablePath(),
+      error: messageFrom(error)
+    });
+    throw error;
+  }
 
   context.once('close', () => {
     chosicContextPromise = undefined;

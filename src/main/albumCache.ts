@@ -4,7 +4,7 @@ import os from 'node:os';
 import { join, sep } from 'node:path';
 import log from 'electron-log/main';
 import superjson from 'superjson';
-import { type Album } from '../types';
+import { type Album, type AlbumMetadata } from '../types';
 import { messageFrom } from './lib/messageFrom';
 
 // Bump when the cache envelope shape changes; old files are discarded.
@@ -79,6 +79,11 @@ export const writeAlbumCache = async (directory: string, albums: Album[]): Promi
 // album, regardless of which music directory it lives in (directories aren't
 // known at update time). Caches that don't contain the album are left alone.
 export const updateAlbumInCaches = async (albumPath: string, updates: Partial<Album>): Promise<void> => {
+  // `updates` mirrors the album's bimm.json exactly, so a tag field it omits
+  // was cleared on disk and must be dropped from the cached album too — a
+  // spread merge can't delete a key on its own.
+  const tagFields: Array<keyof AlbumMetadata> = ['manualTags', 'spotifyGenres', 'bandcampTags'];
+  const tagOverrides = Object.fromEntries(tagFields.map((field) => [field, updates[field]]));
   let cacheFiles: string[];
   try {
     cacheFiles = await fs.readdir(CACHE_DIR);
@@ -123,6 +128,7 @@ export const updateAlbumInCaches = async (albumPath: string, updates: Partial<Al
         envelope.albums[index] = {
           ...existing,
           ...updates,
+          ...tagOverrides,
           filename: updates.filename ?? existing.filename,
           fullpath: updates.fullpath ?? existing.fullpath,
           tracks: updates.tracks ?? existing.tracks

@@ -149,22 +149,22 @@ export const Inbox = (props: InboxProps) => {
   // audio files on disk, so this runs without holding anything up: both
   // fetches are independent and persist to bimm.json when they finish (the
   // getSpotifyGenres/getBandcampTags procedures skip albums that already have
-  // the metadata), and the inbox is refetched afterwards so the new row picks
-  // up the genres/tags.
+  // the metadata). Each download signals the inbox to refetch as it settles,
+  // forcing one re-render against the persisted data per download — the row
+  // shows whichever fetch finished first instead of waiting on the slower one.
   const fetchExtractedTags = useCallback(
     (album: Album) => {
-      void (async () => {
-        const results = await Promise.allSettled([
-          populateAlbumGenresMutation.mutateAsync([getChosicLookupAlbum(album)]),
-          populateBandcampTagsMutation.mutateAsync([getBandcampLookupAlbum(album)])
-        ]);
-        for (const result of results) {
-          if (result.status === 'rejected') {
-            logger.error(result.reason);
+      const refetchWhenSettled = (download: Promise<unknown>) =>
+        download.then(
+          () => inboxQuery.refetch(),
+          (reason: unknown) => {
+            logger.error(reason);
+            return inboxQuery.refetch();
           }
-        }
-        await inboxQuery.refetch();
-      })();
+        );
+
+      void refetchWhenSettled(populateAlbumGenresMutation.mutateAsync([getChosicLookupAlbum(album)]));
+      void refetchWhenSettled(populateBandcampTagsMutation.mutateAsync([getBandcampLookupAlbum(album)]));
     },
     [inboxQuery, populateAlbumGenresMutation, populateBandcampTagsMutation]
   );

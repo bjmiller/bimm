@@ -15,9 +15,10 @@ import {
 import { fetchChosicGenres, fetchMissingChosicGenres } from './chosicGenreOps';
 import { fetchBandcampTags, fetchMissingBandcampTags } from './bandcampTagOps';
 import { z } from 'zod';
-import { addAndPlayAlbums, enqueueAlbums } from './vlcControlOps';
+import { addAndPlayAlbums, enqueueAlbums, getPlaylist } from './vlcControlOps';
 import { extractAndIngestAlbum } from './archiveOps';
 import { createMainLogStream, recentMainLogs } from './logBroadcaster';
+import log from 'electron-log/main.js';
 
 const t = initTRPC.create({ transformer: superjson });
 
@@ -94,6 +95,9 @@ export const appRouter = t.router({
     }),
     addAlbumToQueue: t.procedure.input(z.array(Album)).mutation(async ({ input }) => {
       return await enqueueAlbums(input);
+    }),
+    getPlaylist: t.procedure.query(async () => {
+      return await getPlaylist();
     })
   },
   logs: {

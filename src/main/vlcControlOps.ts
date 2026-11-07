@@ -1,7 +1,19 @@
 import { execFile, spawn } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
-import { type Track, type Album, type VlcCommand, type VlcLaunchCommand, type VlcWebRequestOptions } from '../types';
+import {
+  type Track,
+  type Album,
+  type VlcCommand,
+  type VlcLaunchCommand,
+  type VlcPlaylistEntryV3,
+  type VlcPlaylistV4,
+  type VlcRequestFile,
+  type VlcWebRequestOptions,
+  VlcStatus,
+  VlcPlaylist
+} from '../types';
 import { readOrCreateSettings } from './backendOps';
+import log from 'electron-log/main.js';
 
 const VLC_READY_TIMEOUT_MS = 30000;
 const VLC_READY_POLL_INTERVAL_MS = 500;
@@ -153,28 +165,78 @@ export const enqueueAlbum = async (album: Album) => {
 };
 
 const enqueue = async (track: Track) => {
-  return await sendToVlcWeb({ command: 'in_enqueue', input: pathToFileURL(track.fullPath).href });
+  return await sendToVlcWeb({
+    command: 'in_enqueue',
+    input: pathToFileURL(track.fullPath).href,
+    // VLC reports -1 for an item whose duration it has not parsed yet. The
+    // queue is not preparsed, so supply the duration we already have from the
+    // track metadata; VLC stores it as the playlist item's duration.
+    duration: track.duration
+  });
 };
 
-const sendToVlcWeb = async (vlcCommand: VlcCommand, options: VlcWebRequestOptions = {}) => {
+export const getPlaylist = async () => {
+  return await sendToVlcWeb({ file: 'playlist.json', command: null });
+};
+
+const flattenPlaylistV3 = (entries: VlcPlaylistEntryV3[]): VlcPlaylistV4 =>
+  entries.flatMap((entry) => {
+    if (entry.type === 'node') {
+      return flattenPlaylistV3(entry.children);
+    }
+
+    return [
+      {
+        type: entry.type,
+        id: entry.id,
+        uri: entry.uri,
+        name: entry.name,
+        duration: entry.duration,
+        ...(entry.current == null ? {} : { current: entry.current })
+      }
+    ];
+  });
+
+/**
+ * Flattens VLC 3's playlist tree into VLC 4's flat leaf list. A VLC 4
+ * playlist is already in the target shape and is returned unchanged.
+ */
+export const normalizePlaylist = (playlist: VlcPlaylist): VlcPlaylistV4 =>
+  Array.isArray(playlist) ? playlist : flattenPlaylistV3(playlist.children);
+
+// Maps the requested web endpoint to the shape its JSON response parses to.
+type VlcResponseFor<F extends VlcRequestFile> = {
+  'status.json': VlcStatus;
+  'playlist.json': VlcPlaylistV4;
+}[F];
+
+async function sendToVlcWeb<F extends VlcRequestFile = 'status.json'>(
+  vlcCommand: VlcCommand & { file?: F },
+  options?: VlcWebRequestOptions
+): Promise<VlcResponseFor<F> | undefined>;
+async function sendToVlcWeb(
+  vlcCommand: VlcCommand,
+  options: VlcWebRequestOptions = {}
+): Promise<VlcStatus | VlcPlaylistV4 | undefined> {
   const vlcPassword = (await readOrCreateSettings())?.vlcPassword ?? '';
   const encodedCreds = Buffer.from(`:${vlcPassword}`).toString('base64');
   const Authorization = `Basic ${encodedCreds}`;
 
-  const url = new URL('http://localhost:8080/requests/status.xml');
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(vlcCommand)) {
+  const { file = 'status.json', ...params } = vlcCommand;
+  const url = new URL(`http://localhost:8080/requests/${file}`);
+  const searchParams = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
     if (value !== undefined) {
       if (Array.isArray(value)) {
         for (const item of value) {
-          params.append(key, item);
+          searchParams.append(key, item);
         }
       } else {
-        params.append(key, String(value));
+        searchParams.append(key, String(value));
       }
     }
   }
-  url.search = params.toString();
+  url.search = searchParams.toString();
 
   const abortController = new AbortController();
   const timeout = options.timeoutMs == null ? undefined : setTimeout(() => abortController.abort(), options.timeoutMs);
@@ -185,13 +247,32 @@ const sendToVlcWeb = async (vlcCommand: VlcCommand, options: VlcWebRequestOption
     if (!response.ok) {
       // Release the connection: an unconsumed body keeps the socket held until GC.
       await response.body?.cancel().catch(() => undefined);
-      throw new Error(`VLC request failed: ${response.status} ${response.statusText}`);
+      log.error(`VLC request failed: ${response.status} ${response.statusText}`);
+      return undefined;
     }
 
-    return await response.text();
+    if (file === 'status.json') {
+      let statusResponse: VlcStatus;
+      try {
+        statusResponse = VlcStatus.parse(await response.json());
+        return statusResponse;
+      } catch (e) {
+        log.error('Failed to parse status', e);
+      }
+    }
+
+    if (file === 'playlist.json') {
+      let playlistResponse: VlcPlaylistV4;
+      try {
+        playlistResponse = normalizePlaylist(VlcPlaylist.parse(await response.json()));
+        return playlistResponse;
+      } catch (e) {
+        log.error('Failed to parse playlist', e);
+      }
+    }
   } finally {
     if (timeout != null) {
       clearTimeout(timeout);
     }
   }
-};
+}
